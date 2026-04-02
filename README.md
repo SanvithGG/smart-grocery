@@ -1,104 +1,140 @@
 # Smart Grocery
 
-Full-stack smart grocery management app with JWT auth, inventory tracking, dashboard insights, low-stock alerts, and recommendations.
+Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped inventory management, dashboard insights, low-stock alerts, restock recommendations, and home kitchen expiry reminders for purchased items that are close to expiring or expire today.
 
-## Stack
+## Tech Stack
 
-- Frontend: React, Vite, Tailwind CSS, Axios, React Router
-- Backend: Spring Boot, Spring Security, JPA, MySQL, JWT
+- Frontend: React 19, Vite, Tailwind CSS, Axios, React Router
+- Backend: Spring Boot 4, Spring Security, Spring Validation, JPA, MySQL, JWT
+- Tooling: ESLint, Maven Wrapper
 
-## Current Scope
+## Completed Scope
 
-### Sprint 1
+### Sprint 1: Authentication
 
 - user registration
 - user login
-- JWT authentication
-- protected frontend routes
+- JWT token issuance
+- protected frontend routing
 
-### Sprint 2
+### Sprint 2: Grocery CRUD
 
-- grocery item CRUD
-- user-scoped grocery data
-- inventory management UI
+- add grocery items
+- list grocery items for the current user
+- update purchased status
+- delete grocery items
+- search, category, and purchased-state filtering
 
-### Sprint 3
+### Sprint 3: Smart Dashboard
 
-- dashboard summary
-- low-stock alerts
+- summary cards for total, pending, purchased, and low-stock items
+- low-stock watchlist
 - recommendation queue
 
-### Sprint 4
+### Sprint 4: Frontend Inventory and Dashboard
 
-- login page UI
-- dashboard UI
-- inventory page UI
-- search/category/status filters
-- category dropdown from backend
-- catalog suggestions with autofill
+- polished auth, dashboard, and inventory screens
+- category dropdown populated from backend data
+- catalog suggestion cards with click-to-autofill
+- protected app shell flow after login
 
-## Project Structure
+### Sprint 5: Validation and Verification
+
+- consistent backend JSON error responses
+- frontend API error extraction for validation and auth failures
+- backend service and controller tests
+- passing frontend lint and production build
+
+### Sprint 6: Expiry Tracking
+
+- purchased items can store an expiry date
+- authenticated users receive user-scoped expiry alerts for items expiring soon or today
+- acknowledging an expiry alert deletes that purchased item from the database
+- inventory UI supports setting expiry dates before marking an item as purchased
+
+## Repository Layout
 
 ```text
 Smart_Grocery/
-  backend/
-  frontend/
-  STATUS.md
-  PLAN.md
+  backend/    Spring Boot API
+  frontend/   React app
+  STATUS.md   current repo handoff/status
+  PLAN.md     next pending work
 ```
+
+## Prerequisites
+
+- Java 21
+- Node.js 20+ and npm
+- MySQL 8+
 
 ## Backend Setup
 
-1. Open a terminal in `backend`
-2. Configure database and app properties
-3. Run the Spring Boot app
+1. Create or confirm a MySQL instance is running locally.
+2. Copy the example config from `backend/src/main/resources/application.properties.template`.
+3. Update the copied file values for your local database credentials and JWT secret.
+4. Start the backend from the `backend` directory.
 
-Example config file:
+Example backend config fields:
 
-`backend/src/main/resources/application.properties`
+- `spring.datasource.url=jdbc:mysql://localhost:3306/Smart_GG?createDatabaseIfNotExist=true`
+- `spring.datasource.username=YOUR_DB_USERNAME`
+- `spring.datasource.password=YOUR_DB_PASSWORD`
+- `app.jwt.secret=REPLACE_WITH_A_LONG_RANDOM_SECRET`
+- `app.cors.allowed-origins=http://localhost:5173`
 
-Template:
-
-`backend/src/main/resources/application.properties.template`
-
-Run command:
+Run commands:
 
 ```powershell
-./mvnw spring-boot:run
+cd backend
+.\mvnw.cmd spring-boot:run
 ```
 
-Default backend URL:
+Backend base URL:
 
 `http://localhost:8080`
 
 ## Frontend Setup
 
-1. Open a terminal in `frontend`
-2. Install dependencies
-3. Start the Vite dev server
+1. Install dependencies from the `frontend` directory.
+2. Start the Vite dev server.
+3. Open the local app in a browser after the backend is running.
 
 Run commands:
 
 ```powershell
+cd frontend
 npm install
 npm run dev
 ```
 
-Default frontend URL:
+Frontend URL:
 
 `http://localhost:5173`
 
+## Local Run Flow
+
+1. Start MySQL.
+2. Start the backend on port `8080`.
+3. Start the frontend on port `5173`.
+4. Register a user from the frontend.
+5. Login and verify the dashboard and inventory flows.
+
+## Verification Status
+
+The latest recorded verification in this repo is:
+
+- `frontend`: `npm run lint`
+- `frontend`: `npm run build`
+- `backend`: `.\mvnw.cmd test` with 32 passing tests
+
+## Known Limitations
+
+- The live browser-level end-to-end pass is still a pending verification step.
+- The frontend API base URL is currently hardcoded to `http://localhost:8080`.
+- Local backend credentials should be kept in an untracked local config rather than shared defaults.
+
 ## Notes
 
-- The frontend expects the backend to be running locally.
-- The backend currently uses MySQL.
-- `STATUS.md` records the recovered current project state.
-- `PLAN.md` records the next likely tasks.
-
-## Resume Prompt
-
-Use this in a future chat from `S:\Smart_Grocery`:
-
-```text
-Continue Smart Grocery from the current repo state. Sprint 1 auth is done, Sprint 2 grocery CRUD is done, Sprint 3 low-stock/recommendations/summary is done, and Sprint 4 frontend with login, dashboard, inventory, category dropdown, and catalog suggestions is working. Continue from the next pending task.
-```
+- `STATUS.md` contains the latest project handoff state.
+- `PLAN.md` contains the next recommended tasks.

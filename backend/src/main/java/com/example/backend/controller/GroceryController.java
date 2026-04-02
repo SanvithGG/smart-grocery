@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.CatalogItemResponse;
+import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
 import com.example.backend.entity.GroceryItem;
@@ -52,6 +53,11 @@ public class GroceryController {
         return groceryService.getRecommendations(principal.getName());
     }
 
+    @GetMapping("/expiry-alerts")
+    public List<ExpiryAlertResponse> getExpiryAlerts(Principal principal) {
+        return groceryService.getExpiryAlerts(principal.getName());
+    }
+
     @GetMapping("/summary")
     public GrocerySummaryResponse getSummary(Principal principal) {
         return groceryService.getSummary(principal.getName());
@@ -71,5 +77,11 @@ public class GroceryController {
     public String deleteItem(Principal principal, @PathVariable Long id) {
         groceryService.deleteItem(principal.getName(), id);
         return "Item deleted successfully";
+    }
+
+    @PostMapping("/{id}/acknowledge-expiry-alert")
+    public String acknowledgeExpiryAlert(Principal principal, @PathVariable Long id) {
+        groceryService.acknowledgeExpiryAlert(principal.getName(), id);
+        return "Expiry alert acknowledged and item deleted";
     }
 }

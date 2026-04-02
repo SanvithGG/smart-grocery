@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import api from '../api/client'
+import api, { getApiErrorMessage } from '../api/client'
 
 const initialForm = {
   username: '',
@@ -39,7 +39,7 @@ function AuthPage({ mode }) {
         navigate('/login')
       }
     } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Request failed. Check your input and backend.')
+      setError(getApiErrorMessage(requestError, 'Request failed. Check your input and backend.'))
     } finally {
       setLoading(false)
     }

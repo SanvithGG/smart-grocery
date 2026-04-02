@@ -1,17 +1,23 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.CatalogItemResponse;
+import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.entity.User;
+import com.example.backend.exception.ConflictException;
+import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.GroceryRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +54,9 @@ public class GroceryService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private GeminiCatalogService geminiCatalogService;
+
     public List<GroceryItem> getItemsByUsername(String username) {
         User user = getUser(username);
         return groceryRepository.findByUserId(user.getId());
@@ -75,9 +84,27 @@ public class GroceryService {
     }
 
     public List<CatalogItemResponse> getCatalogItems(String category, String search) {
-        return DEFAULT_CATALOG.stream()
+        List<CatalogItemResponse> staticCatalog = DEFAULT_CATALOG.stream()
                 .filter(item -> matchesCatalogCategory(item, category))
                 .filter(item -> matchesCatalogSearch(item, search))
+                .sorted(Comparator.comparing(CatalogItemResponse::getCategory)
+                        .thenComparing(CatalogItemResponse::getName))
+                .toList();
+
+        List<CatalogItemResponse> generatedCatalog = geminiCatalogService.getCatalogSuggestions(category, search)
+                .stream()
+                .filter(item -> matchesCatalogCategory(item, category))
+                .filter(item -> matchesCatalogSearch(item, search))
+                .toList();
+
+        Map<String, CatalogItemResponse> mergedCatalog = new LinkedHashMap<>();
+        java.util.stream.Stream.concat(staticCatalog.stream(), generatedCatalog.stream())
+                .forEach(item -> mergedCatalog.putIfAbsent(
+                        item.getName().trim().toLowerCase() + "|" + item.getCategory().trim().toLowerCase(),
+                        item
+                ));
+
+        return mergedCatalog.values().stream()
                 .sorted(Comparator.comparing(CatalogItemResponse::getCategory)
                         .thenComparing(CatalogItemResponse::getName))
                 .toList();
@@ -85,6 +112,9 @@ public class GroceryService {
 
     public GroceryItem addItem(String username, GroceryItem item) {
         User user = getUser(username);
+        item.setName(item.getName().trim());
+        item.setCategory(item.getCategory().trim());
+        item.setExpiryDate(item.isPurchased() ? item.getExpiryDate() : null);
         item.setUser(user);
         updatePurchaseHistory(item, item.isPurchased());
         return groceryRepository.save(item);
@@ -107,6 +137,18 @@ public class GroceryService {
                 .filter(recommendation -> recommendation != null)
                 .sorted(Comparator.comparingInt(this::priorityRank)
                         .thenComparing(RecommendationResponse::getItemName))
+                .toList();
+    }
+
+    public List<ExpiryAlertResponse> getExpiryAlerts(String username) {
+        return getItemsByUsername(username).stream()
+                .filter(GroceryItem::isPurchased)
+                .filter(item -> item.getExpiryDate() != null)
+                .map(this::buildExpiryAlert)
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparingInt(this::expirySeverityRank)
+                        .thenComparing(ExpiryAlertResponse::getExpiryDate)
+                        .thenComparing(ExpiryAlertResponse::getItemName))
                 .toList();
     }
 
@@ -139,12 +181,13 @@ public class GroceryService {
     public GroceryItem updateItem(String username, Long id, GroceryItem updated) {
         User user = getUser(username);
         GroceryItem item = groceryRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
         boolean wasPurchased = item.isPurchased();
-        item.setName(updated.getName());
-        item.setCategory(updated.getCategory());
+        item.setName(updated.getName().trim());
+        item.setCategory(updated.getCategory().trim());
         item.setQuantity(updated.getQuantity());
         item.setPurchased(updated.isPurchased());
+        item.setExpiryDate(updated.isPurchased() ? updated.getExpiryDate() : null);
         updatePurchaseHistory(item, !wasPurchased && updated.isPurchased());
         return groceryRepository.save(item);
     }
@@ -152,13 +195,25 @@ public class GroceryService {
     public void deleteItem(String username, Long id) {
         User user = getUser(username);
         GroceryItem item = groceryRepository.findByIdAndUserId(id, user.getId())
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
+        groceryRepository.delete(item);
+    }
+
+    public void acknowledgeExpiryAlert(String username, Long id) {
+        User user = getUser(username);
+        GroceryItem item = groceryRepository.findByIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Item not found"));
+
+        if (buildExpiryAlert(item) == null) {
+            throw new ConflictException("Item does not have an active expiry alert");
+        }
+
         groceryRepository.delete(item);
     }
 
     private User getUser(String username) {
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private RecommendationResponse buildRecommendation(List<GroceryItem> items) {
@@ -175,6 +230,60 @@ public class GroceryService {
                 buildReason(items),
                 buildPriority(score)
         );
+    }
+
+    private ExpiryAlertResponse buildExpiryAlert(GroceryItem item) {
+        if (!item.isPurchased() || item.getExpiryDate() == null) {
+            return null;
+        }
+
+        long daysUntilExpiry = ChronoUnit.DAYS.between(LocalDate.now(), item.getExpiryDate());
+
+        if (daysUntilExpiry < 0) {
+            return new ExpiryAlertResponse(
+                    item.getId(),
+                    item.getName(),
+                    item.getCategory(),
+                    item.getExpiryDate(),
+                    "Expired. Remove it and buy fresh today.",
+                    "OVERDUE"
+            );
+        }
+
+        if (daysUntilExpiry == 0) {
+            return new ExpiryAlertResponse(
+                    item.getId(),
+                    item.getName(),
+                    item.getCategory(),
+                    item.getExpiryDate(),
+                    "Expires today. Use it in time or buy fresh today.",
+                    "TODAY"
+            );
+        }
+
+        if (daysUntilExpiry == 1) {
+            return new ExpiryAlertResponse(
+                    item.getId(),
+                    item.getName(),
+                    item.getCategory(),
+                    item.getExpiryDate(),
+                    "Expires in 1 day.",
+                    "SOON"
+            );
+        }
+
+        if (daysUntilExpiry <= 3) {
+            return new ExpiryAlertResponse(
+                    item.getId(),
+                    item.getName(),
+                    item.getCategory(),
+                    item.getExpiryDate(),
+                    "Should be used soon.",
+                    "SOON"
+            );
+        }
+
+        return null;
     }
 
     private int recommendationScore(GroceryItem item) {
@@ -225,6 +334,14 @@ public class GroceryService {
         return switch (recommendation.getPriority()) {
             case "HIGH" -> 0;
             case "MEDIUM" -> 1;
+            default -> 2;
+        };
+    }
+
+    private int expirySeverityRank(ExpiryAlertResponse alert) {
+        return switch (alert.getSeverity()) {
+            case "OVERDUE" -> 0;
+            case "TODAY" -> 1;
             default -> 2;
         };
     }

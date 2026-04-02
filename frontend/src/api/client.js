@@ -14,4 +14,41 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('token')
+    }
+
+    return Promise.reject(error)
+  },
+)
+
+export function getApiErrorMessage(error, fallbackMessage) {
+  const responseData = error?.response?.data
+
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData
+  }
+
+  if (responseData?.errors) {
+    const firstFieldMessage = Object.values(responseData.errors).find(Boolean)
+
+    if (firstFieldMessage) {
+      return firstFieldMessage
+    }
+  }
+
+  if (responseData?.message) {
+    return responseData.message
+  }
+
+  if (error?.response?.status === 401) {
+    return 'Your session expired or is invalid. Please login again.'
+  }
+
+  return fallbackMessage
+}
+
 export default api

@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 
 import com.example.backend.dto.*;
 import com.example.backend.entity.User;
+import com.example.backend.exception.ConflictException;
+import com.example.backend.exception.ResourceNotFoundException;
+import com.example.backend.exception.UnauthorizedException;
 import com.example.backend.repository.UserRepository;
 import com.example.backend.security.JwtUtil;
 
@@ -22,14 +25,16 @@ public class AuthService {
     private JwtUtil jwtUtil;
 
     public String register(RegisterRequest request) {
+        String username = request.getUsername().trim();
+        String email = request.getEmail().trim().toLowerCase();
 
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            throw new RuntimeException("Username already exists");
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new ConflictException("Username already exists");
         }
 
         User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
+        user.setUsername(username);
+        user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
         userRepository.save(user);
@@ -38,12 +43,13 @@ public class AuthService {
     }
 
     public String login(AuthRequest request) {
+        String username = request.getUsername().trim();
 
-        User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Invalid password");
+            throw new UnauthorizedException("Invalid password");
         }
 
         return jwtUtil.generateToken(user.getUsername());
