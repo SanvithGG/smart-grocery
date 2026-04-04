@@ -134,7 +134,3 @@ The latest recorded verification in this repo is:
 - The frontend API base URL is currently hardcoded to `http://localhost:8080`.
 - Local backend credentials should be kept in an untracked local config rather than shared defaults.
 
-## Notes
-
-- `STATUS.md` contains the latest project handoff state.
-- `PLAN.md` contains the next recommended tasks.
