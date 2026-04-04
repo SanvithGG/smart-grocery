@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.backend.dto.*;
 import com.example.backend.entity.User;
+import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.exception.UnauthorizedException;
@@ -36,13 +37,29 @@ public class AuthService {
         user.setUsername(username);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(UserRole.USER);
 
         userRepository.save(user);
 
         return "User registered successfully";
     }
 
-    public String login(AuthRequest request) {
+    public AuthResponse login(AuthRequest request) {
+        User user = authenticate(request);
+        return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
+    }
+
+    public AuthResponse loginAdmin(AuthRequest request) {
+        User user = authenticate(request);
+
+        if (resolveRole(user) != UserRole.ADMIN) {
+            throw new UnauthorizedException("Admin access is required");
+        }
+
+        return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
+    }
+
+    private User authenticate(AuthRequest request) {
         String username = request.getUsername().trim();
 
         User user = userRepository.findByUsername(username)
@@ -52,6 +69,10 @@ public class AuthService {
             throw new UnauthorizedException("Invalid password");
         }
 
-        return jwtUtil.generateToken(user.getUsername());
+        return user;
+    }
+
+    private UserRole resolveRole(User user) {
+        return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }

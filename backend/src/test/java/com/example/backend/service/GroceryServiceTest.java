@@ -4,8 +4,10 @@ import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
+import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.entity.User;
+import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.GroceryRepository;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -108,6 +111,33 @@ class GroceryServiceTest {
     }
 
     @Test
+    void addItemAutoFillsExpiryDateForPurchasedItemsWhenNotProvided() {
+        User user = user(1L, "sanvi");
+        GroceryItem newItem = item(null, "Milk", "Dairy", 2, true, null, null, null);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GroceryItem saved = groceryService.addItem("sanvi", newItem);
+
+        assertEquals(LocalDate.now().plusDays(3), saved.getExpiryDate());
+        assertNotNull(saved.getLastPurchasedAt());
+    }
+
+    @Test
+    void addItemUsesFallbackExpiryForItemsWithoutSpecificDefaults() {
+        User user = user(1L, "sanvi");
+        GroceryItem newItem = item(null, "Cooked Food", "Meals", 1, true, null, null, null);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GroceryItem saved = groceryService.addItem("sanvi", newItem);
+
+        assertEquals(LocalDate.now().plusDays(7), saved.getExpiryDate());
+    }
+
+    @Test
     void getLowStockItemsReturnsOnlyPendingItemsAtThresholdOrLower() {
         User user = user(1L, "sanvi");
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
@@ -121,6 +151,51 @@ class GroceryServiceTest {
 
         assertEquals(1, lowStockItems.size());
         assertEquals("Milk", lowStockItems.get(0).getName());
+    }
+
+    @Test
+    void getSmartShoppingListIncludesLowStockAndExpiringItemsExcludesNormalAndDeduplicates() {
+        User user = user(1L, "sanvi");
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.findByUserId(1L)).thenReturn(List.of(
+                item(1L, "Milk", "Dairy", 1, false, null, null, user),
+                item(2L, "Eggs", "Dairy", 6, true, LocalDate.now().plusDays(1), null, user),
+                item(3L, "Rice", "Grains", 5, false, null, null, user),
+                item(4L, "Yogurt", "Dairy", 1, true, LocalDate.now().plusDays(1), null, user)
+        ));
+
+        List<ShoppingItemDTO> shoppingList = groceryService.getSmartShoppingList("sanvi");
+
+        assertEquals(3, shoppingList.size());
+
+        ShoppingItemDTO milk = shoppingList.stream().filter(item -> item.getItemId().equals(1L)).findFirst().orElseThrow();
+        ShoppingItemDTO eggs = shoppingList.stream().filter(item -> item.getItemId().equals(2L)).findFirst().orElseThrow();
+        ShoppingItemDTO yogurt = shoppingList.stream().filter(item -> item.getItemId().equals(4L)).findFirst().orElseThrow();
+
+        assertEquals(List.of("LOW_STOCK"), milk.getReasons());
+        assertEquals("MEDIUM", milk.getPriority());
+        assertEquals(List.of("EXPIRING"), eggs.getReasons());
+        assertEquals("HIGH", eggs.getPriority());
+        assertEquals(List.of("LOW_STOCK", "EXPIRING"), yogurt.getReasons());
+        assertEquals("HIGH", yogurt.getPriority());
+        assertFalse(shoppingList.stream().anyMatch(item -> item.getItemId().equals(3L)));
+    }
+
+    @Test
+    void getSmartShoppingListReturnsOnlyCurrentUserItems() {
+        User sanvi = user(1L, "sanvi");
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(sanvi));
+
+        when(groceryRepository.findByUserId(1L)).thenReturn(List.of(
+                item(1L, "Milk", "Dairy", 1, false, null, null, sanvi)
+        ));
+
+        List<ShoppingItemDTO> sanviShoppingList = groceryService.getSmartShoppingList("sanvi");
+
+        assertEquals(1, sanviShoppingList.size());
+        assertEquals(1L, sanviShoppingList.get(0).getItemId());
+        assertEquals("Milk", sanviShoppingList.get(0).getName());
+        assertEquals(List.of("LOW_STOCK"), sanviShoppingList.get(0).getReasons());
     }
 
     @Test
@@ -183,6 +258,21 @@ class GroceryServiceTest {
         assertEquals(1, saved.getQuantity());
         assertNotNull(saved.getLastPurchasedAt());
         assertEquals(LocalDate.now().plusDays(1), saved.getExpiryDate());
+    }
+
+    @Test
+    void updateItemAutoFillsExpiryDateWhenPurchasedWithoutManualDate() {
+        User user = user(1L, "sanvi");
+        GroceryItem existing = item(10L, "Bread", "Bakery", 2, false, null, null, user);
+        GroceryItem updated = item(null, "Bread", "Bakery", 1, true, null, null, null);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GroceryItem saved = groceryService.updateItem("sanvi", 10L, updated);
+
+        assertEquals(LocalDate.now().plusDays(5), saved.getExpiryDate());
     }
 
     @Test
@@ -273,7 +363,7 @@ class GroceryServiceTest {
     }
 
     private User user(long id, String username) {
-        return new User(id, username, username + "@example.com", "encoded-password");
+        return new User(id, username, username + "@example.com", "encoded-password", UserRole.USER);
     }
 
     private GroceryItem item(Long id, String name, String category, int quantity, boolean purchased,

@@ -7,8 +7,10 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 import com.example.backend.entity.User;
+import com.example.backend.entity.UserRole;
 import com.example.backend.repository.UserRepository;
-import java.util.ArrayList;
+import java.util.List;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService{
@@ -25,7 +27,11 @@ public class CustomUserDetailsService implements UserDetailsService{
                 return new org.springframework.security.core.userdetails.User(
                     user.getUsername(),
                     user.getPassword(),
-                    new ArrayList<>()
+                    List.of(new SimpleGrantedAuthority("ROLE_" + resolveRole(user).name()))
                 );
+    }
+
+    private UserRole resolveRole(User user) {
+        return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }

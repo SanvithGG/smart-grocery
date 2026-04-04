@@ -1,11 +1,22 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api, { getApiErrorMessage } from '../api/client'
+import { setSession } from '../utils/session'
 
 const initialForm = {
   username: '',
   email: '',
   password: '',
+}
+
+const authPageStyle = {
+  background:
+    'linear-gradient(135deg, #082f49 0%, #0f172a 45%, #14532d 100%)',
+}
+
+const authPanelStyle = {
+  background:
+    'linear-gradient(145deg, rgba(15,23,42,0.82), rgba(3,105,161,0.24) 58%, rgba(22,101,52,0.22) 100%)',
 }
 
 function AuthPage({ mode }) {
@@ -32,8 +43,8 @@ function AuthPage({ mode }) {
           password: form.password,
         })
 
-        localStorage.setItem('token', data.token)
-        navigate('/')
+        setSession(data)
+        navigate(data.role === 'ADMIN' ? '/admin' : '/')
       } else {
         await api.post('/auth/register', form)
         navigate('/login')
@@ -46,32 +57,35 @@ function AuthPage({ mode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(135deg,_#082f49,_#0f172a_45%,_#14532d)] px-4 py-10 text-white sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-10 text-white sm:px-6 lg:px-8" style={authPageStyle}>
       <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[36px] border border-white/10 bg-white/8 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.35)] backdrop-blur">
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-emerald-300">
-            Sprint 4
+        <section
+          className="rounded-[36px] border border-white/10 p-8 shadow-[0_24px_80px_rgba(15,23,42,0.35)] backdrop-blur"
+          style={authPanelStyle}
+        >
+          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-300">
+            Smart Grocery
           </p>
           <h1 className="mt-4 max-w-xl text-4xl font-semibold leading-tight sm:text-5xl">
-            Plan groceries with a smarter, calmer workflow.
+            Buy smarter, track stock, and keep your kitchen under control.
           </h1>
           <p className="mt-6 max-w-2xl text-base text-slate-200 sm:text-lg">
-            Track stock, review purchase history, and surface what matters next with
-            low-stock alerts and recommendation signals.
+            Sign in to manage inventory, review what needs to be bought next, and stay ahead of
+            low-stock and expiry reminders.
           </p>
 
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
-              <p className="text-3xl font-semibold">JWT</p>
-              <p className="mt-2 text-sm text-slate-300">Protected session flow</p>
+            <div className="rounded-3xl border border-white/10 bg-black/15 p-5">
+              <p className="text-3xl font-semibold">Inventory</p>
+              <p className="mt-2 text-sm text-slate-300">Track what is in stock right now</p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
-              <p className="text-3xl font-semibold">AI-lite</p>
-              <p className="mt-2 text-sm text-slate-300">Restock recommendations</p>
+            <div className="rounded-3xl border border-white/10 bg-black/15 p-5">
+              <p className="text-3xl font-semibold">Buy Queue</p>
+              <p className="mt-2 text-sm text-slate-300">See what needs to be bought next</p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/25 p-5">
-              <p className="text-3xl font-semibold">Dashboard</p>
-              <p className="mt-2 text-sm text-slate-300">Summary-first UI</p>
+            <div className="rounded-3xl border border-white/10 bg-black/15 p-5">
+              <p className="text-3xl font-semibold">Reminders</p>
+              <p className="mt-2 text-sm text-slate-300">Catch low stock and expiry alerts early</p>
             </div>
           </div>
         </section>
@@ -85,8 +99,8 @@ function AuthPage({ mode }) {
           </h2>
           <p className="mt-3 text-sm text-slate-500">
             {isLogin
-              ? 'Use your credentials to access the grocery dashboard.'
-              : 'Start with a secure account before managing your items.'}
+              ? 'Use your credentials to access your grocery workspace.'
+              : 'Create an account to start managing inventory and purchase tracking.'}
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -96,7 +110,7 @@ function AuthPage({ mode }) {
                 name="username"
                 value={form.username}
                 onChange={handleChange}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-sky-500"
+                className="w-full rounded-2xl border border-slate-200 bg-sky-50/40 px-4 py-3 outline-none transition focus:border-sky-500"
                 placeholder="Enter username"
                 required
               />
@@ -110,7 +124,7 @@ function AuthPage({ mode }) {
                   type="email"
                   value={form.email}
                   onChange={handleChange}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-sky-500"
+                  className="w-full rounded-2xl border border-slate-200 bg-sky-50/40 px-4 py-3 outline-none transition focus:border-sky-500"
                   placeholder="Enter email"
                   required
                 />
@@ -124,7 +138,7 @@ function AuthPage({ mode }) {
                 type="password"
                 value={form.password}
                 onChange={handleChange}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-sky-500"
+                className="w-full rounded-2xl border border-slate-200 bg-sky-50/40 px-4 py-3 outline-none transition focus:border-sky-500"
                 placeholder="Enter password"
                 required
               />
@@ -141,7 +155,7 @@ function AuthPage({ mode }) {
               disabled={loading}
               className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create account'}
+              {loading ? 'Please wait...' : isLogin ? 'Enter Workspace' : 'Create account'}
             </button>
           </form>
 

@@ -1,6 +1,7 @@
 package com.example.backend.controller;
 
 import com.example.backend.authentication.JwtFilter;
+import com.example.backend.dto.AuthResponse;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.UnauthorizedException;
 import com.example.backend.service.AuthService;
@@ -73,7 +74,7 @@ class AuthControllerTest {
 
     @Test
     void loginReturnsTokenResponse() throws Exception {
-        when(authService.login(any())).thenReturn("jwt-token");
+        when(authService.login(any())).thenReturn(new AuthResponse("jwt-token", "sanvi", "USER"));
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,7 +83,9 @@ class AuthControllerTest {
                                 "password", "password123"
                         ))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").value("jwt-token"));
+                .andExpect(jsonPath("$.token").value("jwt-token"))
+                .andExpect(jsonPath("$.username").value("sanvi"))
+                .andExpect(jsonPath("$.role").value("USER"));
     }
 
     @Test
@@ -125,5 +128,21 @@ class AuthControllerTest {
                         ))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Invalid password"));
+    }
+
+    @Test
+    void adminLoginReturnsTokenResponse() throws Exception {
+        when(authService.loginAdmin(any())).thenReturn(new AuthResponse("admin-token", "admin", "ADMIN"));
+
+        mockMvc.perform(post("/auth/admin/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", "admin",
+                                "password", "Admin@123"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("admin-token"))
+                .andExpect(jsonPath("$.username").value("admin"))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
     }
 }

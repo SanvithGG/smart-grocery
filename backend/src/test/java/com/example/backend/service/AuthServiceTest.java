@@ -1,8 +1,10 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.AuthRequest;
+import com.example.backend.dto.AuthResponse;
 import com.example.backend.dto.RegisterRequest;
 import com.example.backend.entity.User;
+import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.exception.UnauthorizedException;
@@ -52,7 +54,7 @@ class AuthServiceTest {
         String result = authService.register(request);
 
         assertEquals("User registered successfully", result);
-        verify(userRepository).save(new User(0L, "sanvi", "sanvi@example.com", "encoded-password"));
+        verify(userRepository).save(new User(0L, "sanvi", "sanvi@example.com", "encoded-password", UserRole.USER));
     }
 
     @Test
@@ -76,15 +78,17 @@ class AuthServiceTest {
         request.setUsername("sanvi");
         request.setPassword("password123");
 
-        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password");
+        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password", UserRole.USER);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
         when(jwtUtil.generateToken("sanvi")).thenReturn("jwt-token");
 
-        String token = authService.login(request);
+        AuthResponse response = authService.login(request);
 
-        assertEquals("jwt-token", token);
+        assertEquals("jwt-token", response.getToken());
+        assertEquals("sanvi", response.getUsername());
+        assertEquals("USER", response.getRole());
     }
 
     @Test
@@ -93,7 +97,7 @@ class AuthServiceTest {
         request.setUsername("sanvi");
         request.setPassword("wrong-password");
 
-        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password");
+        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password", UserRole.USER);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", "encoded-password")).thenReturn(false);
@@ -115,5 +119,22 @@ class AuthServiceTest {
                 () -> authService.login(request));
 
         assertEquals("User not found", exception.getMessage());
+    }
+
+    @Test
+    void adminLoginRejectsNonAdminUser() {
+        AuthRequest request = new AuthRequest();
+        request.setUsername("sanvi");
+        request.setPassword("password123");
+
+        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password", UserRole.USER);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
+
+        UnauthorizedException exception = assertThrows(UnauthorizedException.class,
+                () -> authService.loginAdmin(request));
+
+        assertEquals("Admin access is required", exception.getMessage());
     }
 }

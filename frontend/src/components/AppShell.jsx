@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import api from '../api/client'
+import { clearSession } from '../utils/session'
 
 const AVAILABILITY_THRESHOLD = 3
 const POPUP_DURATION_MS = 7000
@@ -68,7 +69,7 @@ function AppShell() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
+    clearSession()
     navigate('/login')
   }
 
@@ -289,6 +290,9 @@ function AppShell() {
               </NavLink>
               <NavLink to="/inventory" className={navClassName}>
                 Inventory
+              </NavLink>
+              <NavLink to="/shopping-list" className={navClassName}>
+                Buy Queue
               </NavLink>
             </nav>
 

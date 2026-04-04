@@ -38,37 +38,81 @@ function DashboardPage() {
     return new Date(`${value}T00:00:00`).toLocaleDateString()
   }
 
-  useEffect(() => {
-    let cancelled = false
-
-    Promise.all([
+  const fetchDashboardData = async () => {
+    const results = await Promise.allSettled([
       api.get('/api/grocery/summary'),
       api.get('/api/grocery/recommendations'),
       api.get('/api/grocery/low-stock'),
       api.get('/api/grocery/expiry-alerts'),
       api.get('/api/grocery'),
     ])
-      .then(([summaryResponse, recommendationsResponse, lowStockResponse, expiryAlertsResponse, myItemsResponse]) => {
-        if (cancelled) {
-          return
-        }
 
-        setSummary(summaryResponse.data)
-        setRecommendations(recommendationsResponse.data)
-        setLowStockItems(lowStockResponse.data)
-        setExpiryAlerts(expiryAlertsResponse.data)
-        setMyItems(myItemsResponse.data)
-        setError('')
-      })
-      .catch((requestError) => {
-        if (cancelled) {
-          return
-        }
+    const [summaryResult, recommendationsResult, lowStockResult, expiryAlertsResult, myItemsResult] = results
+    const failures = results.filter((result) => result.status === 'rejected')
 
-        setError(
-          getApiErrorMessage(requestError, 'Unable to load dashboard data. Start the backend and login again.'),
-        )
-      })
+    return {
+      failures,
+      summary: summaryResult.status === 'fulfilled' ? summaryResult.value.data : undefined,
+      recommendations:
+        recommendationsResult.status === 'fulfilled' ? recommendationsResult.value.data : undefined,
+      lowStockItems: lowStockResult.status === 'fulfilled' ? lowStockResult.value.data : undefined,
+      expiryAlerts: expiryAlertsResult.status === 'fulfilled' ? expiryAlertsResult.value.data : undefined,
+      myItems: myItemsResult.status === 'fulfilled' ? myItemsResult.value.data : undefined,
+    }
+  }
+
+  const applyDashboardData = (data) => {
+    if (data.summary !== undefined) {
+      setSummary(data.summary)
+    }
+
+    if (data.recommendations !== undefined) {
+      setRecommendations(data.recommendations)
+    }
+
+    if (data.lowStockItems !== undefined) {
+      setLowStockItems(data.lowStockItems)
+    }
+
+    if (data.expiryAlerts !== undefined) {
+      setExpiryAlerts(data.expiryAlerts)
+    }
+
+    if (data.myItems !== undefined) {
+      setMyItems(data.myItems)
+    }
+  }
+
+  const setDashboardErrorFromFailures = (failures) => {
+    if (failures.length === 0) {
+      setError('')
+      return
+    }
+
+    if (failures.length === 5) {
+      setError(
+        getApiErrorMessage(
+          failures[0].reason,
+          'Unable to load dashboard data. Start the backend and login again.',
+        ),
+      )
+      return
+    }
+
+    setError('Some dashboard sections are temporarily unavailable.')
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchDashboardData().then((data) => {
+      if (cancelled) {
+        return
+      }
+
+      applyDashboardData(data)
+      setDashboardErrorFromFailures(data.failures)
+    })
 
     return () => {
       cancelled = true
@@ -87,13 +131,66 @@ function DashboardPage() {
   }, [location.pathname, location.state, navigate])
 
   useEffect(() => {
-    const handleDataChanged = () => {
-      refreshDashboard()
+    let cancelled = false
+
+    const handleDataChanged = async () => {
+      const results = await Promise.allSettled([
+        api.get('/api/grocery/summary'),
+        api.get('/api/grocery/recommendations'),
+        api.get('/api/grocery/low-stock'),
+        api.get('/api/grocery/expiry-alerts'),
+        api.get('/api/grocery'),
+      ])
+
+      if (cancelled) {
+        return
+      }
+
+      const [summaryResult, recommendationsResult, lowStockResult, expiryAlertsResult, myItemsResult] = results
+      const failures = results.filter((result) => result.status === 'rejected')
+
+      if (summaryResult.status === 'fulfilled') {
+        setSummary(summaryResult.value.data)
+      }
+
+      if (recommendationsResult.status === 'fulfilled') {
+        setRecommendations(recommendationsResult.value.data)
+      }
+
+      if (lowStockResult.status === 'fulfilled') {
+        setLowStockItems(lowStockResult.value.data)
+      }
+
+      if (expiryAlertsResult.status === 'fulfilled') {
+        setExpiryAlerts(expiryAlertsResult.value.data)
+      }
+
+      if (myItemsResult.status === 'fulfilled') {
+        setMyItems(myItemsResult.value.data)
+      }
+
+      if (failures.length === 0) {
+        setError('')
+        return
+      }
+
+      if (failures.length === results.length) {
+        setError(
+          getApiErrorMessage(
+            failures[0].reason,
+            'Unable to load dashboard data. Start the backend and login again.',
+          ),
+        )
+        return
+      }
+
+      setError('Some dashboard sections are temporarily unavailable.')
     }
 
     window.addEventListener('grocery-data-changed', handleDataChanged)
 
     return () => {
+      cancelled = true
       window.removeEventListener('grocery-data-changed', handleDataChanged)
     }
   }, [])
@@ -118,20 +215,9 @@ function DashboardPage() {
   const pendingItems = myItems.filter((item) => !item.purchased).slice(0, 5)
 
   const refreshDashboard = async () => {
-    const [summaryResponse, recommendationsResponse, lowStockResponse, expiryAlertsResponse, myItemsResponse] = await Promise.all([
-      api.get('/api/grocery/summary'),
-      api.get('/api/grocery/recommendations'),
-      api.get('/api/grocery/low-stock'),
-      api.get('/api/grocery/expiry-alerts'),
-      api.get('/api/grocery'),
-    ])
-
-    setSummary(summaryResponse.data)
-    setRecommendations(recommendationsResponse.data)
-    setLowStockItems(lowStockResponse.data)
-    setExpiryAlerts(expiryAlertsResponse.data)
-    setMyItems(myItemsResponse.data)
-    setError('')
+    const data = await fetchDashboardData()
+    applyDashboardData(data)
+    setDashboardErrorFromFailures(data.failures)
   }
 
   const handleAcknowledgeAlert = async (itemId) => {
@@ -371,7 +457,7 @@ function DashboardPage() {
             See the grocery list, stock pressure, and next actions in one place.
           </h2>
           <p className="mt-4 max-w-xl text-sm text-slate-200 sm:text-base">
-            This view is now focused on operational data. Browse and quick-add items from the
+            This view is now focused on operational data. Browse and quickly buy items from the
             Home page, then use this screen for decisions, including reminders for kitchen items
             that are close to expiring or expire today.
           </p>

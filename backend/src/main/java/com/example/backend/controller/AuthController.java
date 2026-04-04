@@ -21,7 +21,11 @@ public class AuthController {
 
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody AuthRequest request) {
-        String token = authService.login(request);
-        return new AuthResponse(token);
+        return authService.login(request);
+    }
+
+    @PostMapping("/admin/login")
+    public AuthResponse adminLogin(@Valid @RequestBody AuthRequest request) {
+        return authService.loginAdmin(request);
     }
 }

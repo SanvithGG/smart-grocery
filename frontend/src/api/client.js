@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { clearSession } from '../utils/session'
 
 const api = axios.create({
   baseURL: 'http://localhost:8080',
@@ -18,7 +19,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
-      localStorage.removeItem('token')
+      clearSession()
     }
 
     return Promise.reject(error)
@@ -49,6 +50,11 @@ export function getApiErrorMessage(error, fallbackMessage) {
   }
 
   return fallbackMessage
+}
+
+export const getShoppingList = async () => {
+  const response = await api.get('/api/grocery/shopping-list')
+  return response.data
 }
 
 export default api

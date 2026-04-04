@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api, { getApiErrorMessage } from '../api/client'
+import { getNaturalExpiryDate } from '../utils/expiry'
 
 const initialForm = {
   name: '',
@@ -9,31 +10,30 @@ const initialForm = {
   expiryDate: '',
 }
 
-const getSuggestionClasses = (item) => {
-  if (item.source === 'GEMINI') {
-    return 'border-fuchsia-200 bg-[linear-gradient(145deg,_rgba(217,70,239,0.12),_rgba(255,255,255,0.94)_58%,_rgba(59,130,246,0.1))] hover:border-fuchsia-300 hover:bg-fuchsia-50/80'
-  }
+const suggestionClasses =
+  'border-sky-100 hover:border-sky-300 hover:bg-sky-50/80'
 
-  return 'border-slate-200 bg-slate-50 hover:border-sky-300 hover:bg-sky-50'
+const suggestionCardStyle = {
+  background:
+    'linear-gradient(145deg, rgba(14,165,233,0.12), rgba(255,255,255,0.94) 58%, rgba(16,185,129,0.08))',
 }
 
 function InventoryPage() {
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
-  const [expiryDrafts, setExpiryDrafts] = useState({})
   const [form, setForm] = useState(initialForm)
   const [filters, setFilters] = useState({ category: '', search: '', purchased: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-
-  const syncExpiryDrafts = (nextItems) => {
-    setExpiryDrafts(Object.fromEntries(nextItems.map((item) => [item.id, item.expiryDate ?? ''])))
-  }
+  const naturalExpiryDate = form.purchased ? getNaturalExpiryDate(form.name, form.category) : null
+  const displayedExpiryDate = form.expiryDate || naturalExpiryDate || ''
+  const getExpectedExpiryDate = (item) =>
+    item.expiryDate || getNaturalExpiryDate(item.name, item.category) || ''
 
   const formatExpiryDate = (value) => {
     if (!value) {
-      return 'Not set'
+      return 'Select item details to preview expiry'
     }
 
     return new Date(`${value}T00:00:00`).toLocaleDateString()
@@ -60,7 +60,6 @@ function InventoryPage() {
 
       const { data } = await api.get('/api/grocery', { params })
       setItems(data)
-      syncExpiryDrafts(data)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load grocery items. Make sure the backend is running.'))
     } finally {
@@ -109,7 +108,6 @@ function InventoryPage() {
         ])
 
         setItems(itemsResponse.data)
-        syncExpiryDrafts(itemsResponse.data)
         setCategories(categoriesResponse.data)
         setCatalogItems(catalogResponse.data)
       } catch (requestError) {
@@ -151,7 +149,6 @@ function InventoryPage() {
         ])
 
         setItems(itemsResponse.data)
-        syncExpiryDrafts(itemsResponse.data)
         setCategories(categoriesResponse.data)
         setCatalogItems(catalogResponse.data)
       } catch (requestError) {
@@ -176,6 +173,13 @@ function InventoryPage() {
     }))
   }
 
+  const handleFormPurchasedToggle = () => {
+    setForm((current) => ({
+      ...current,
+      purchased: !current.purchased,
+    }))
+  }
+
   const handleFilterChange = (event) => {
     const { name, value } = event.target
     const nextFilters = { ...filters, [name]: value }
@@ -191,53 +195,52 @@ function InventoryPage() {
       await api.post('/api/grocery', {
         ...form,
         quantity: Number(form.quantity),
-        expiryDate: form.expiryDate || null,
+        expiryDate: displayedExpiryDate || null,
       })
 
       setForm(initialForm)
       loadItems()
       loadCategoryOptions()
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Could not add item. Check the values and try again.'))
+      setError(getApiErrorMessage(requestError, 'Could not save this buying item. Check the values and try again.'))
     }
   }
 
   const handleCategorySelect = (event) => {
     const nextCategory = event.target.value
-    setForm((current) => ({ ...current, category: nextCategory }))
+    setForm((current) => ({
+      ...current,
+      category: nextCategory,
+      purchased: false,
+      expiryDate: '',
+    }))
     loadCatalogItems(nextCategory, form.name)
   }
 
   const handleNameInput = (event) => {
     const nextName = event.target.value
-    setForm((current) => ({ ...current, name: nextName }))
+    setForm((current) => ({
+      ...current,
+      name: nextName,
+      purchased: false,
+      expiryDate: '',
+    }))
     loadCatalogItems(form.category, nextName)
   }
 
   const handleCatalogPick = (catalogItem) => {
     setForm((current) => ({
-      ...current,
+      ...initialForm,
+      quantity: current.quantity,
       name: catalogItem.name,
       category: catalogItem.category,
-    }))
-  }
-
-  const handleExpiryDraftChange = (itemId, value) => {
-    setExpiryDrafts((current) => ({
-      ...current,
-      [itemId]: value,
     }))
   }
 
   const handleTogglePurchased = async (item) => {
     setError('')
     const nextPurchased = !item.purchased
-    const nextExpiryDate = nextPurchased ? expiryDrafts[item.id] || item.expiryDate || '' : null
-
-    if (nextPurchased && !nextExpiryDate) {
-      setError('Set an expiry date before marking this item as purchased.')
-      return
-    }
+    const nextExpiryDate = nextPurchased ? item.expiryDate || null : null
 
     try {
       await api.put(`/api/grocery/${item.id}`, {
@@ -249,33 +252,6 @@ function InventoryPage() {
       loadItems()
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Could not update item status.'))
-    }
-  }
-
-  const handleSaveExpiryDate = async (item) => {
-    if (!item.purchased) {
-      setError('Expiry dates are stored for purchased kitchen items only.')
-      return
-    }
-
-    const nextExpiryDate = expiryDrafts[item.id] || ''
-
-    if (!nextExpiryDate) {
-      setError('Choose an expiry date before saving.')
-      return
-    }
-
-    setError('')
-
-    try {
-      await api.put(`/api/grocery/${item.id}`, {
-        ...item,
-        expiryDate: nextExpiryDate,
-      })
-
-      loadItems()
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Could not save the expiry date.'))
     }
   }
 
@@ -292,15 +268,15 @@ function InventoryPage() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-      <section className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+      <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
-          Add Item
+          Buy Item
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Build your inventory
+          Build your purchase flow
         </h2>
         <p className="mt-3 max-w-lg text-sm text-slate-600">
-          Keep your kitchen list current so the app can surface reminders for items that are close
+          Keep your kitchen inventory current so the app can surface reminders for items that are close
           to expiring or expire today.
         </p>
 
@@ -339,42 +315,43 @@ function InventoryPage() {
             required
           />
 
-          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
-            <input
-              name="purchased"
-              type="checkbox"
-              checked={form.purchased}
-              onChange={handleFormChange}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            Mark as already purchased
-          </label>
+          <button
+            type="button"
+            onClick={handleFormPurchasedToggle}
+            className={`w-full rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+              form.purchased
+                ? 'border-sky-300 bg-sky-50 text-sky-800'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            {form.purchased ? 'Purchased' : 'Set As Purchased'}
+          </button>
 
           <input
-            name="expiryDate"
-            type="date"
-            value={form.expiryDate}
-            onChange={handleFormChange}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-sky-500"
+            readOnly
+            value={formatExpiryDate(displayedExpiryDate)}
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none"
           />
           <p className="text-xs text-slate-500">
-            Required when the item is already purchased so expiry alerts can be tracked.
+            {naturalExpiryDate
+              ? `Natural expiry date: ${formatExpiryDate(naturalExpiryDate)}.`
+              : 'Expiry is calculated automatically from the item name or category once you mark it purchased.'}
           </p>
 
           <button
             type="submit"
             className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Save Item
+            Save Buy Item
           </button>
         </form>
 
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Daily Suggestions
+              Daily Picks
             </p>
-            <p className="text-xs text-slate-400">Click to autofill name and category</p>
+            <p className="text-xs text-slate-400">Click to autofill item and category</p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {catalogItems.slice(0, 8).map((catalogItem) => (
@@ -382,15 +359,11 @@ function InventoryPage() {
                 key={`${catalogItem.category}-${catalogItem.name}`}
                 type="button"
                 onClick={() => handleCatalogPick(catalogItem)}
-                className={`rounded-2xl border px-4 py-3 text-left transition ${getSuggestionClasses(catalogItem)}`}
+                className={`rounded-2xl border px-4 py-3 text-left transition ${suggestionClasses}`}
+                style={suggestionCardStyle}
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-slate-900">{catalogItem.name}</p>
-                  {catalogItem.source === 'GEMINI' && (
-                    <span className="rounded-full bg-fuchsia-950 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                      AI
-                    </span>
-                  )}
                 </div>
                 <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
                   {catalogItem.category}
@@ -401,7 +374,7 @@ function InventoryPage() {
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+      <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
@@ -483,7 +456,8 @@ function InventoryPage() {
                       Quantity: {item.quantity} | Status: {item.purchased ? 'Purchased' : 'Pending'}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      Expiry date: {formatExpiryDate(item.purchased ? item.expiryDate : expiryDrafts[item.id])}
+                      {item.purchased ? 'Expiry date' : 'Expected expiry'}:{' '}
+                      {formatExpiryDate(getExpectedExpiryDate(item))}
                     </p>
                     {item.lastPurchasedAt && (
                       <p className="mt-1 text-xs text-slate-400">
@@ -493,27 +467,12 @@ function InventoryPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <input
-                      type="date"
-                      value={expiryDrafts[item.id] ?? ''}
-                      onChange={(event) => handleExpiryDraftChange(item.id, event.target.value)}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-500"
-                    />
-                    {item.purchased && (
-                      <button
-                        type="button"
-                        onClick={() => handleSaveExpiryDate(item)}
-                        className="rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
-                      >
-                        Save Expiry
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => handleTogglePurchased(item)}
                       className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                     >
-                      {item.purchased ? 'Mark Pending' : 'Mark Purchased'}
+                      {item.purchased ? 'Move to Pending' : 'Mark as Bought'}
                     </button>
                     <button
                       type="button"

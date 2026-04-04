@@ -4,6 +4,7 @@ import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
+import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.entity.User;
 import com.example.backend.exception.ConflictException;
@@ -16,7 +17,9 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +30,8 @@ import java.util.stream.Collectors;
 public class GroceryService {
 
     private static final int LOW_STOCK_THRESHOLD = 2;
+    private static final int SMART_SHOPPING_EXPIRY_DAYS = 2;
+    private static final int FALLBACK_EXPIRY_DAYS = 7;
     private static final List<CatalogItemResponse> DEFAULT_CATALOG = List.of(
             new CatalogItemResponse("Milk", "Dairy"),
             new CatalogItemResponse("Bread", "Bakery"),
@@ -47,6 +52,8 @@ public class GroceryService {
             new CatalogItemResponse("Soap", "Household"),
             new CatalogItemResponse("Detergent", "Household")
     );
+    private static final Map<String, Integer> ITEM_EXPIRY_DAYS = createItemExpiryDays();
+    private static final Map<String, Integer> CATEGORY_EXPIRY_DAYS = createCategoryExpiryDays();
 
     @Autowired
     private GroceryRepository groceryRepository;
@@ -114,7 +121,7 @@ public class GroceryService {
         User user = getUser(username);
         item.setName(item.getName().trim());
         item.setCategory(item.getCategory().trim());
-        item.setExpiryDate(item.isPurchased() ? item.getExpiryDate() : null);
+        item.setExpiryDate(resolveExpiryDate(item.getName(), item.getCategory(), item.isPurchased(), item.getExpiryDate()));
         item.setUser(user);
         updatePurchaseHistory(item, item.isPurchased());
         return groceryRepository.save(item);
@@ -124,6 +131,23 @@ public class GroceryService {
         return getItemsByUsername(username).stream()
                 .filter(item -> !item.isPurchased())
                 .filter(item -> item.getQuantity() <= LOW_STOCK_THRESHOLD)
+                .toList();
+    }
+
+    public List<ShoppingItemDTO> getSmartShoppingList(String username) {
+        LocalDate today = LocalDate.now();
+        Map<Long, ShoppingItemDTO> shoppingItems = new LinkedHashMap<>();
+
+        for (GroceryItem item : getItemsByUsername(username)) {
+            ShoppingItemDTO smartItem = mapToShoppingItem(item, today);
+            if (smartItem != null) {
+                shoppingItems.put(item.getId(), smartItem);
+            }
+        }
+
+        return shoppingItems.values().stream()
+                .sorted(Comparator.comparingInt(this::shoppingPriorityRank)
+                        .thenComparing(ShoppingItemDTO::getName))
                 .toList();
     }
 
@@ -187,7 +211,7 @@ public class GroceryService {
         item.setCategory(updated.getCategory().trim());
         item.setQuantity(updated.getQuantity());
         item.setPurchased(updated.isPurchased());
-        item.setExpiryDate(updated.isPurchased() ? updated.getExpiryDate() : null);
+        item.setExpiryDate(resolveExpiryDate(item.getName(), item.getCategory(), item.isPurchased(), updated.getExpiryDate()));
         updatePurchaseHistory(item, !wasPurchased && updated.isPurchased());
         return groceryRepository.save(item);
     }
@@ -346,6 +370,59 @@ public class GroceryService {
         };
     }
 
+    private ShoppingItemDTO mapToShoppingItem(GroceryItem item, LocalDate today) {
+        List<String> reasons = new ArrayList<>();
+        LocalDate thresholdDate = today.plusDays(SMART_SHOPPING_EXPIRY_DAYS);
+
+        if (item.getQuantity() <= LOW_STOCK_THRESHOLD) {
+            reasons.add("LOW_STOCK");
+        }
+
+        if (item.getExpiryDate() != null && !item.getExpiryDate().isAfter(thresholdDate)) {
+            reasons.add("EXPIRING");
+        }
+
+        if (reasons.isEmpty()) {
+            return null;
+        }
+
+        return new ShoppingItemDTO(
+                item.getId(),
+                item.getName(),
+                item.getCategory(),
+                reasons,
+                buildShoppingPriority(item, reasons, today),
+                item.getQuantity(),
+                item.isPurchased(),
+                item.getExpiryDate()
+        );
+    }
+
+    private String buildShoppingPriority(GroceryItem item, List<String> reasons, LocalDate today) {
+        if (reasons.contains("EXPIRING") && item.getExpiryDate() != null) {
+            long daysToExpiry = ChronoUnit.DAYS.between(today, item.getExpiryDate());
+            if (daysToExpiry <= 1) {
+                return "HIGH";
+            }
+
+            return "MEDIUM";
+        }
+
+        if (reasons.contains("LOW_STOCK")) {
+            return "MEDIUM";
+        }
+
+        return "LOW";
+    }
+
+    private int shoppingPriorityRank(ShoppingItemDTO item) {
+        return switch (item.getPriority()) {
+            case "HIGH" -> 0;
+            case "MEDIUM" -> 1;
+            default -> 2;
+        };
+    }
+
     private boolean matchesCategory(GroceryItem item, String category) {
         if (category == null || category.isBlank()) {
             return true;
@@ -390,5 +467,70 @@ public class GroceryService {
         String query = search.trim().toLowerCase();
         return item.getName().toLowerCase().contains(query)
                 || item.getCategory().toLowerCase().contains(query);
+    }
+
+    private LocalDate resolveExpiryDate(String name, String category, boolean purchased, LocalDate requestedExpiryDate) {
+        if (!purchased) {
+            return null;
+        }
+
+        if (requestedExpiryDate != null) {
+            return requestedExpiryDate;
+        }
+
+        String normalizedName = normalizeKey(name);
+        Integer itemDays = ITEM_EXPIRY_DAYS.get(normalizedName);
+        if (itemDays != null) {
+            return LocalDate.now().plusDays(itemDays);
+        }
+
+        Integer categoryDays = CATEGORY_EXPIRY_DAYS.get(normalizeKey(category));
+        if (categoryDays != null) {
+            return LocalDate.now().plusDays(categoryDays);
+        }
+
+        return LocalDate.now().plusDays(FALLBACK_EXPIRY_DAYS);
+    }
+
+    private String normalizeKey(String value) {
+        return value == null ? "" : value.trim().toLowerCase();
+    }
+
+    private static Map<String, Integer> createItemExpiryDays() {
+        Map<String, Integer> expiryDays = new HashMap<>();
+        expiryDays.put("milk", 3);
+        expiryDays.put("bread", 5);
+        expiryDays.put("eggs", 14);
+        expiryDays.put("rice", 180);
+        expiryDays.put("wheat flour", 120);
+        expiryDays.put("apples", 10);
+        expiryDays.put("bananas", 4);
+        expiryDays.put("tomatoes", 7);
+        expiryDays.put("onions", 21);
+        expiryDays.put("potatoes", 30);
+        expiryDays.put("cooking oil", 180);
+        expiryDays.put("salt", 365);
+        expiryDays.put("sugar", 365);
+        expiryDays.put("tea", 180);
+        expiryDays.put("coffee", 180);
+        expiryDays.put("biscuits", 120);
+        expiryDays.put("paneer", 7);
+        expiryDays.put("yogurt", 7);
+        expiryDays.put("spinach", 3);
+        return expiryDays;
+    }
+
+    private static Map<String, Integer> createCategoryExpiryDays() {
+        Map<String, Integer> expiryDays = new HashMap<>();
+        expiryDays.put("dairy", 7);
+        expiryDays.put("bakery", 5);
+        expiryDays.put("fruits", 7);
+        expiryDays.put("vegetables", 7);
+        expiryDays.put("grains", 180);
+        expiryDays.put("essentials", 180);
+        expiryDays.put("beverages", 90);
+        expiryDays.put("snacks", 120);
+        expiryDays.put("household", 365);
+        return expiryDays;
     }
 }

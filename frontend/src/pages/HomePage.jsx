@@ -1,27 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { getApiErrorMessage } from '../api/client'
+import { getNaturalExpiryDate } from '../utils/expiry'
 
 const AVAILABILITY_THRESHOLD = 3
+const initialQuickAddDraft = {
+  quantity: 1,
+  purchased: false,
+  expiryDate: '',
+}
 
-const getCatalogCardClasses = (item) => {
-  if (item.source === 'GEMINI') {
-    return {
-      shell:
-        'border-fuchsia-200 bg-[linear-gradient(145deg,_rgba(217,70,239,0.14),_rgba(255,255,255,0.96)_58%,_rgba(59,130,246,0.12))]',
-      chip: 'bg-white/90 text-fuchsia-700',
-      badge: 'bg-fuchsia-950 text-white',
-      button:
-        'border-fuchsia-200 bg-white/90 text-fuchsia-800 hover:border-fuchsia-300 hover:bg-fuchsia-50',
-    }
-  }
+const catalogCardClasses = {
+  shell: 'border-sky-100',
+  chip: 'bg-white/95 text-sky-700',
+  button:
+    'border-sky-200 bg-white text-sky-800 hover:border-sky-300 hover:bg-sky-50',
+}
 
-  return {
-    shell: 'border-slate-100 bg-slate-50',
-    chip: 'bg-white text-slate-500',
-    badge: 'bg-slate-900 text-white',
-    button: 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-100',
-  }
+const quickBuyModalStyle = {
+  background:
+    'linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.95))',
+}
+
+const homeHeroStyle = {
+  background:
+    'linear-gradient(135deg, rgba(14,165,233,0.18), rgba(255,255,255,0.92) 55%, rgba(16,185,129,0.12))',
+}
+
+const catalogCardStyle = {
+  background:
+    'linear-gradient(145deg, rgba(14,165,233,0.12), rgba(255,255,255,0.96) 58%, rgba(16,185,129,0.08))',
 }
 
 function HomePage() {
@@ -30,7 +38,21 @@ function HomePage() {
   const [catalogCategories, setCatalogCategories] = useState([])
   const [catalogFilters, setCatalogFilters] = useState({ category: '', search: '' })
   const [error, setError] = useState('')
-  const [addingItemKey, setAddingItemKey] = useState('')
+  const [quickAddTarget, setQuickAddTarget] = useState(null)
+  const [quickAddDraft, setQuickAddDraft] = useState(initialQuickAddDraft)
+  const [quickAddSubmitting, setQuickAddSubmitting] = useState(false)
+  const naturalQuickExpiryDate =
+    quickAddDraft.purchased && quickAddTarget
+      ? getNaturalExpiryDate(quickAddTarget.name, quickAddTarget.category)
+      : null
+  const displayedQuickExpiryDate = quickAddDraft.expiryDate || naturalQuickExpiryDate || ''
+  const formatNaturalExpiry = (value) => {
+    if (!value) {
+      return 'Mark as purchased to preview expiry'
+    }
+
+    return new Date(`${value}T00:00:00`).toLocaleDateString()
+  }
 
   const loadHomeData = async () => {
     setError('')
@@ -81,23 +103,58 @@ function HomePage() {
     loadCatalog(nextFilters.category, nextFilters.search)
   }
 
-  const handleAddFromCatalog = async (item) => {
-    const itemKey = `${item.category}-${item.name}`
-    setAddingItemKey(itemKey)
+  const handleOpenQuickAdd = (item) => {
+    setQuickAddTarget(item)
+    setQuickAddDraft(initialQuickAddDraft)
+    setError('')
+  }
+
+  const handleCloseQuickAdd = () => {
+    setQuickAddTarget(null)
+    setQuickAddDraft(initialQuickAddDraft)
+    setQuickAddSubmitting(false)
+  }
+
+  const handleQuickAddChange = (event) => {
+    const { name, value, type, checked } = event.target
+    setQuickAddDraft((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const handleQuickPurchasedToggle = () => {
+    setQuickAddDraft((current) => ({
+      ...current,
+      purchased: !current.purchased,
+    }))
+  }
+
+  const handleQuickAddSubmit = async (event) => {
+    event.preventDefault()
+
+    if (!quickAddTarget) {
+      return
+    }
+
+    setQuickAddSubmitting(true)
     setError('')
 
     try {
       await api.post('/api/grocery', {
-        name: item.name,
-        category: item.category,
-        quantity: 1,
-        purchased: false,
+        name: quickAddTarget.name,
+        category: quickAddTarget.category,
+        quantity: Number(quickAddDraft.quantity),
+        purchased: quickAddDraft.purchased,
+        expiryDate: quickAddDraft.purchased ? displayedQuickExpiryDate || null : null,
       })
       await loadHomeData()
+      window.dispatchEvent(new Event('grocery-data-changed'))
+      handleCloseQuickAdd()
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, `Could not add ${item.name} to your list.`))
+      setError(getApiErrorMessage(requestError, `Could not add ${quickAddTarget.name} to your buy plan.`))
     } finally {
-      setAddingItemKey('')
+      setQuickAddSubmitting(false)
     }
   }
 
@@ -110,16 +167,100 @@ function HomePage() {
 
   return (
     <div className="space-y-6">
+      {quickAddTarget && (
+        <>
+          <button
+            type="button"
+            aria-label="Close quick add modal"
+            onClick={handleCloseQuickAdd}
+            className="fixed inset-0 z-40 bg-slate-950/25"
+          />
+          <section className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            <div
+              className="w-full max-w-lg rounded-4xl border border-white/70 p-6 shadow-[0_28px_120px_rgba(15,23,42,0.22)] backdrop-blur"
+              style={quickBuyModalStyle}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.32em] text-emerald-700">
+                    Quick Buy
+                  </p>
+                  <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                    {quickAddTarget.name}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">{quickAddTarget.category}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseQuickAdd}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
+
+              <form className="mt-6 space-y-4" onSubmit={handleQuickAddSubmit}>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Quantity</label>
+                  <input
+                    name="quantity"
+                    type="number"
+                    min="1"
+                    value={quickAddDraft.quantity}
+                    onChange={handleQuickAddChange}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleQuickPurchasedToggle}
+                  className={`w-full rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                    quickAddDraft.purchased
+                      ? 'border-sky-300 bg-sky-50 text-sky-800'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  {quickAddDraft.purchased ? 'Purchased' : 'Set As Purchased'}
+                </button>
+
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Natural Expiry</label>
+                  <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                    {formatNaturalExpiry(displayedQuickExpiryDate)}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Expiry is calculated automatically from the item name or category defaults.
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={quickAddSubmitting}
+                  className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {quickAddSubmitting ? 'Saving...' : 'Buy This Item'}
+                </button>
+              </form>
+            </div>
+          </section>
+        </>
+      )}
+
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <article className="overflow-hidden rounded-[32px] border border-sky-100 bg-[linear-gradient(135deg,_rgba(14,165,233,0.18),_rgba(255,255,255,0.92)_55%,_rgba(16,185,129,0.12))] p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]">
+        <article
+          className="overflow-hidden rounded-4xl border border-sky-100 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
+          style={homeHeroStyle}
+        >
           <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
             Grocery Home
           </p>
           <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950">
-            Keep shopping simple, then jump into the dashboard when you need the numbers.
+            Plan what to buy fast, then use the dashboard when you need the numbers.
           </h2>
           <p className="mt-4 max-w-xl text-sm text-slate-600 sm:text-base">
-            Browse your grocery catalog, add items fast, and move to the dashboard for stock,
+            Browse your grocery catalog, buy items fast, and move to the dashboard for stock,
             pending items, smart recommendations, kitchen reminders, and stored notifications.
           </p>
 
@@ -131,6 +272,12 @@ function HomePage() {
               Open Dashboard
             </Link>
             <Link
+              to="/shopping-list"
+              className="rounded-full border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
+            >
+              Buy Queue
+            </Link>
+            <Link
               to="/inventory"
               className="rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
@@ -139,7 +286,7 @@ function HomePage() {
           </div>
         </article>
 
-        <article className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+        <article className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
             Today
           </p>
@@ -166,21 +313,17 @@ function HomePage() {
         </div>
       )}
 
-      <section className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+      <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div>
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-700">
-              Browse
+              Shop
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Shop your catalog from home
+              Pick what you want to buy
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Search for grocery names or categories here. If Gemini returns extra matches, they
-              will appear together with your regular catalog items.
-            </p>
-            <p className="mt-2 text-xs font-medium uppercase tracking-[0.22em] text-fuchsia-700">
-              Gemini matches show with a highlighted card background.
+              Search grocery names or categories here and add them straight into your buying flow.
             </p>
           </div>
 
@@ -217,41 +360,30 @@ function HomePage() {
 
           {catalogItems.map((item) => {
             const itemKey = `${item.category}-${item.name}`
-            const isAdding = addingItemKey === itemKey
-            const cardClasses = getCatalogCardClasses(item)
 
             return (
               <article
                 key={itemKey}
-                className={`rounded-3xl border px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${cardClasses.shell}`}
+                className={`rounded-3xl border px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
+                style={catalogCardStyle}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${cardClasses.chip}`}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
                   >
                     {item.category}
                   </span>
-                  {item.source === 'GEMINI' && (
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${cardClasses.badge}`}
-                    >
-                      Gemini Pick
-                    </span>
-                  )}
                 </div>
                 <h3 className="mt-3 text-lg font-semibold text-slate-900">{item.name}</h3>
                 <p className="mt-2 text-sm text-slate-500">
-                  {item.source === 'GEMINI'
-                    ? 'Suggested from your API search result.'
-                    : 'Quick add this item to your grocery list.'}
+                  Add this product to your buy plan and track it from inventory.
                 </p>
                 <button
                   type="button"
-                  onClick={() => handleAddFromCatalog(item)}
-                  disabled={isAdding}
-                  className={`mt-4 w-full rounded-2xl border px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${cardClasses.button}`}
+                  onClick={() => handleOpenQuickAdd(item)}
+                  className={`mt-4 w-full rounded-2xl border px-4 py-2 text-sm font-semibold transition ${catalogCardClasses.button}`}
                 >
-                  {isAdding ? 'Adding...' : 'Add to List'}
+                  Buy Option
                 </button>
               </article>
             )

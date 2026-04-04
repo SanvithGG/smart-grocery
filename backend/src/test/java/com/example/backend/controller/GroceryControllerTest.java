@@ -4,6 +4,7 @@ import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
+import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.service.GroceryService;
 import org.junit.jupiter.api.Test;
@@ -77,6 +78,20 @@ class GroceryControllerTest {
 
         assertEquals(expected, result);
         verify(groceryService).getLowStockItems("sanvi");
+    }
+
+    @Test
+    void getShoppingListDelegatesToService() {
+        List<ShoppingItemDTO> expected = List.of(
+                new ShoppingItemDTO(2L, "Eggs", "Dairy", List.of("EXPIRING"), "HIGH", 1, true, LocalDate.now().plusDays(1))
+        );
+        when(principal.getName()).thenReturn("sanvi");
+        when(groceryService.getSmartShoppingList("sanvi")).thenReturn(expected);
+
+        List<ShoppingItemDTO> result = groceryController.getShoppingList(principal);
+
+        assertEquals(expected, result);
+        verify(groceryService).getSmartShoppingList("sanvi");
     }
 
     @Test

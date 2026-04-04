@@ -2,7 +2,6 @@ package com.example.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -44,10 +43,4 @@ public class GroceryItem {
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
-
-    @JsonIgnore
-    @AssertTrue(message = "Expiry date is required for purchased items")
-    public boolean isExpiryDateValid() {
-        return !purchased || expiryDate != null;
-    }
 }

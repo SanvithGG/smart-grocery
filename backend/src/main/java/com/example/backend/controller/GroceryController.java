@@ -4,6 +4,7 @@ import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
+import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.service.GroceryService;
 import jakarta.validation.Valid;
@@ -46,6 +47,11 @@ public class GroceryController {
     @GetMapping("/low-stock")
     public List<GroceryItem> getLowStockItems(Principal principal) {
         return groceryService.getLowStockItems(principal.getName());
+    }
+
+    @GetMapping("/shopping-list")
+    public List<ShoppingItemDTO> getShoppingList(Principal principal) {
+        return groceryService.getSmartShoppingList(principal.getName());
     }
 
     @GetMapping("/recommendations")
