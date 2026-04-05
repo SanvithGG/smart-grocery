@@ -4,8 +4,8 @@ Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped in
 
 ## Tech Stack
 
-- Frontend: React 19, Vite, Tailwind CSS, Axios, React Router
-- Backend: Spring Boot 4, Spring Security, Spring Validation, JPA, MySQL, JWT
+- Frontend: React (Vite), Tailwind CSS, Axios, React Router
+- Backend: Spring Boot 3, Spring Security, Spring Validation, JPA, MySQL, JWT
 - Tooling: ESLint, Maven Wrapper
 
 ## Completed Scope
