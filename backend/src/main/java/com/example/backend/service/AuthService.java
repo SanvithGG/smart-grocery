@@ -60,9 +60,11 @@ public class AuthService {
     }
 
     private User authenticate(AuthRequest request) {
-        String username = request.getUsername().trim();
+        String credential = request.getUsername().trim();
+        String normalizedCredential = credential.toLowerCase();
 
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsername(credential)
+                .or(() -> userRepository.findByEmail(normalizedCredential))
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

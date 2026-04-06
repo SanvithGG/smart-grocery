@@ -2,11 +2,13 @@ package com.example.backend.service;
 
 import com.example.backend.dto.AdminCategoryRenameRequest;
 import com.example.backend.dto.AdminCategoryResponse;
+import com.example.backend.dto.AdminCatalogStockUpdateRequest;
 import com.example.backend.dto.AdminDashboardResponse;
 import com.example.backend.dto.AdminProductResponse;
 import com.example.backend.dto.AdminReportsResponse;
 import com.example.backend.dto.AdminUserRoleUpdateRequest;
 import com.example.backend.dto.AdminUserSummaryResponse;
+import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.entity.User;
 import com.example.backend.entity.UserRole;
@@ -29,10 +31,12 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final GroceryRepository groceryRepository;
+    private final GroceryService groceryService;
 
-    public AdminService(UserRepository userRepository, GroceryRepository groceryRepository) {
+    public AdminService(UserRepository userRepository, GroceryRepository groceryRepository, GroceryService groceryService) {
         this.userRepository = userRepository;
         this.groceryRepository = groceryRepository;
+        this.groceryService = groceryService;
     }
 
     public AdminDashboardResponse getDashboard() {
@@ -200,6 +204,18 @@ public class AdminService {
                         .thenComparing(GroceryItem::getName, String.CASE_INSENSITIVE_ORDER))
                 .map(this::mapProduct)
                 .toList();
+    }
+
+    public AdminProductResponse fulfillPurchaseQueueItem(Long id) {
+        return mapProduct(groceryService.fulfillPendingPurchase(id));
+    }
+
+    public List<CatalogItemResponse> getCatalogStock() {
+        return groceryService.getCatalogStock();
+    }
+
+    public CatalogItemResponse updateCatalogStock(AdminCatalogStockUpdateRequest request) {
+        return groceryService.updateCatalogStock(request.getName(), request.getCategory(), request.getQuantity());
     }
 
     public AdminReportsResponse getReports() {

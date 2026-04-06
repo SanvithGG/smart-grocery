@@ -38,10 +38,11 @@ public class GroceryController {
 
     @GetMapping("/catalog")
     public List<CatalogItemResponse> getCatalogItems(
+            Principal principal,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search
     ) {
-        return groceryService.getCatalogItems(category, search);
+        return groceryService.getCatalogItems(principal.getName(), category, search);
     }
 
     @GetMapping("/low-stock")

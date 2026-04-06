@@ -92,6 +92,26 @@ class AuthServiceTest {
     }
 
     @Test
+    void loginReturnsTokenWhenEmailIsUsed() {
+        AuthRequest request = new AuthRequest();
+        request.setUsername("sanvi@example.com");
+        request.setPassword("password123");
+
+        User user = new User(1L, "sanvi", "sanvi@example.com", "encoded-password", UserRole.USER);
+
+        when(userRepository.findByUsername("sanvi@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("sanvi@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
+        when(jwtUtil.generateToken("sanvi")).thenReturn("jwt-token");
+
+        AuthResponse response = authService.login(request);
+
+        assertEquals("jwt-token", response.getToken());
+        assertEquals("sanvi", response.getUsername());
+        assertEquals("USER", response.getRole());
+    }
+
+    @Test
     void loginRejectsInvalidPassword() {
         AuthRequest request = new AuthRequest();
         request.setUsername("sanvi");
@@ -114,6 +134,7 @@ class AuthServiceTest {
         request.setPassword("password123");
 
         when(userRepository.findByUsername("missing-user")).thenReturn(Optional.empty());
+        when(userRepository.findByEmail("missing-user")).thenReturn(Optional.empty());
 
         ResourceNotFoundException exception = assertThrows(ResourceNotFoundException.class,
                 () -> authService.login(request));

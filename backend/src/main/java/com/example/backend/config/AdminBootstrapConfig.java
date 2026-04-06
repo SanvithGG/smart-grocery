@@ -17,11 +17,17 @@ public class AdminBootstrapConfig {
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             @Value("${app.admin.seed.username:admin}") String username,
-            @Value("${app.admin.seed.email:admin@smartgrocery.local}") String email,
+            @Value("${app.admin.seed.email:admin@gmail.com}") String email,
             @Value("${app.admin.seed.password:Admin@123}") String password
     ) {
         return args -> {
-            if (userRepository.findByUsername(username).isPresent()) {
+            User existingAdmin = userRepository.findByUsername(username).orElse(null);
+            if (existingAdmin != null) {
+                existingAdmin.setEmail(email.trim().toLowerCase());
+                if (existingAdmin.getRole() == null) {
+                    existingAdmin.setRole(UserRole.ADMIN);
+                }
+                userRepository.save(existingAdmin);
                 return;
             }
 

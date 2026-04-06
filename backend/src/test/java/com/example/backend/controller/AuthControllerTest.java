@@ -67,7 +67,7 @@ class AuthControllerTest {
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Validation failed"))
-                .andExpect(jsonPath("$.errors.username").value("Username is required"))
+                .andExpect(jsonPath("$.errors.username").value("Username must be between 3 and 40 characters"))
                 .andExpect(jsonPath("$.errors.email").value("Email must be valid"))
                 .andExpect(jsonPath("$.errors.password").value("Password must be at least 8 characters"));
     }
@@ -99,6 +99,19 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Validation failed"))
                 .andExpect(jsonPath("$.errors.password").value("Password is required"));
+    }
+
+    @Test
+    void loginRejectsMissingUsernameOrEmail() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "username", "",
+                                "password", "password123"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.errors.username").value("Username or email is required"));
     }
 
     @Test

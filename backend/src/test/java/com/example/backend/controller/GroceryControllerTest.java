@@ -59,13 +59,14 @@ class GroceryControllerTest {
 
     @Test
     void getCatalogItemsDelegatesToService() {
+        when(principal.getName()).thenReturn("sanvi");
         List<CatalogItemResponse> expected = List.of(new CatalogItemResponse("Tomatoes", "Vegetables"));
-        when(groceryService.getCatalogItems("Vegetables", "to")).thenReturn(expected);
+        when(groceryService.getCatalogItems("sanvi", "Vegetables", "to")).thenReturn(expected);
 
-        List<CatalogItemResponse> result = groceryController.getCatalogItems("Vegetables", "to");
+        List<CatalogItemResponse> result = groceryController.getCatalogItems(principal, "Vegetables", "to");
 
         assertEquals(expected, result);
-        verify(groceryService).getCatalogItems("Vegetables", "to");
+        verify(groceryService).getCatalogItems("sanvi", "Vegetables", "to");
     }
 
     @Test

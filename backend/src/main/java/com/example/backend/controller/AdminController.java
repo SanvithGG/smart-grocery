@@ -2,11 +2,13 @@ package com.example.backend.controller;
 
 import com.example.backend.dto.AdminCategoryRenameRequest;
 import com.example.backend.dto.AdminCategoryResponse;
+import com.example.backend.dto.AdminCatalogStockUpdateRequest;
 import com.example.backend.dto.AdminDashboardResponse;
 import com.example.backend.dto.AdminProductResponse;
 import com.example.backend.dto.AdminReportsResponse;
 import com.example.backend.dto.AdminUserRoleUpdateRequest;
 import com.example.backend.dto.AdminUserSummaryResponse;
+import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.service.AdminService;
 import jakarta.validation.Valid;
@@ -75,6 +77,21 @@ public class AdminController {
     @GetMapping("/purchase-queue")
     public List<AdminProductResponse> getPurchaseQueue() {
         return adminService.getPurchaseQueue();
+    }
+
+    @PostMapping("/purchase-queue/{id}/fulfill")
+    public AdminProductResponse fulfillPurchaseQueueItem(@PathVariable Long id) {
+        return adminService.fulfillPurchaseQueueItem(id);
+    }
+
+    @GetMapping("/catalog-stock")
+    public List<CatalogItemResponse> getCatalogStock() {
+        return adminService.getCatalogStock();
+    }
+
+    @PutMapping("/catalog-stock")
+    public CatalogItemResponse updateCatalogStock(@Valid @RequestBody AdminCatalogStockUpdateRequest request) {
+        return adminService.updateCatalogStock(request);
     }
 
     @GetMapping("/reports")

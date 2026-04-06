@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CircleUserRound } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import api, { getApiErrorMessage } from '../api/client'
 import { setSession } from '../utils/session'
@@ -94,24 +95,29 @@ function AuthPage({ mode }) {
           <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
             {isLogin ? 'Login' : 'Register'}
           </p>
+          <div className="mt-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+            <CircleUserRound className="h-7 w-7" />
+          </div>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight">
             {isLogin ? 'Welcome back' : 'Create your account'}
           </h2>
           <p className="mt-3 text-sm text-slate-500">
             {isLogin
-              ? 'Use your credentials to access your grocery workspace.'
+              ? 'Use your username or email with your password to access your grocery workspace.'
               : 'Create an account to start managing inventory and purchase tracking.'}
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
             <label className="block">
-              <span className="mb-2 block text-sm font-medium text-slate-700">Username</span>
+              <span className="mb-2 block text-sm font-medium text-slate-700">
+                {isLogin ? 'Username or Email' : 'Username'}
+              </span>
               <input
                 name="username"
                 value={form.username}
                 onChange={handleChange}
                 className="w-full rounded-2xl border border-slate-200 bg-sky-50/40 px-4 py-3 outline-none transition focus:border-sky-500"
-                placeholder="Enter username"
+                placeholder={isLogin ? 'Enter username or email' : 'Enter username'}
                 required
               />
             </label>

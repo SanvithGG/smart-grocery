@@ -86,13 +86,20 @@ class GroceryServiceTest {
     void getCatalogItemsFiltersByCategoryAndSearchAndReturnsSortedResults() {
         when(geminiCatalogService.getCatalogSuggestions("Vegetables", "o")).thenReturn(List.of());
 
-        List<CatalogItemResponse> catalogItems = groceryService.getCatalogItems("Vegetables", "o");
+        List<CatalogItemResponse> catalogItems = groceryService.getCatalogItems("sanvi", "Vegetables", "o");
 
-        assertEquals(List.of(
-                new CatalogItemResponse("Onions", "Vegetables"),
-                new CatalogItemResponse("Potatoes", "Vegetables"),
-                new CatalogItemResponse("Tomatoes", "Vegetables")
-        ), catalogItems);
+        assertEquals(3, catalogItems.size());
+        assertEquals("Onions", catalogItems.get(0).getName());
+        assertEquals("IN_STOCK", catalogItems.get(0).getAvailability());
+        assertEquals(6, catalogItems.get(0).getAvailableQuantity());
+        assertEquals("Potatoes", catalogItems.get(1).getName());
+        assertEquals("IN_STOCK", catalogItems.get(1).getAvailability());
+        assertEquals(14, catalogItems.get(1).getAvailableQuantity());
+        assertEquals("Tomatoes", catalogItems.get(2).getName());
+        assertEquals("IN_STOCK", catalogItems.get(2).getAvailability());
+        assertEquals(11, catalogItems.get(2).getAvailableQuantity());
+        assertNotNull(catalogItems.get(2).getPrice());
+        assertEquals("INR", catalogItems.get(2).getCurrency());
     }
 
     @Test
@@ -108,6 +115,25 @@ class GroceryServiceTest {
         assertEquals(user, saved.getUser());
         assertNotNull(saved.getLastPurchasedAt());
         assertEquals(LocalDate.now().plusDays(2), saved.getExpiryDate());
+    }
+
+    @Test
+    void addPurchasedItemReducesCatalogStockQuantity() {
+        User user = user(1L, "sanvi");
+        GroceryItem newItem = item(null, "Milk", "Dairy", 2, true, LocalDate.now().plusDays(2), null, null);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        groceryService.addItem("sanvi", newItem);
+
+        CatalogItemResponse milk = groceryService.getCatalogStock().stream()
+                .filter(item -> item.getName().equals("Milk"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(6, milk.getAvailableQuantity());
+        assertEquals("IN_STOCK", milk.getAvailability());
     }
 
     @Test
@@ -261,10 +287,52 @@ class GroceryServiceTest {
     }
 
     @Test
+    void updateItemToPurchasedReducesCatalogStockQuantity() {
+        User user = user(1L, "sanvi");
+        GroceryItem existing = item(10L, "Coffee", "Beverages", 2, false, null, null, user);
+        GroceryItem updated = item(null, "Coffee", "Beverages", 2, true, LocalDate.now().plusDays(1), null, null);
+
+        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        groceryService.updateItem("sanvi", 10L, updated);
+
+        CatalogItemResponse coffee = groceryService.getCatalogStock().stream()
+                .filter(item -> item.getName().equals("Coffee"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(2, coffee.getAvailableQuantity());
+        assertEquals("LOW_STOCK", coffee.getAvailability());
+    }
+
+    @Test
+    void fulfillPendingPurchaseMarksItemPurchasedAndReducesCatalogStock() {
+        User user = user(1L, "sanvi");
+        GroceryItem existing = item(10L, "Eggs", "Dairy", 3, false, null, null, user);
+
+        when(groceryRepository.findById(10L)).thenReturn(Optional.of(existing));
+        when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GroceryItem fulfilled = groceryService.fulfillPendingPurchase(10L);
+
+        assertTrue(fulfilled.isPurchased());
+        assertNotNull(fulfilled.getLastPurchasedAt());
+
+        CatalogItemResponse eggs = groceryService.getCatalogStock().stream()
+                .filter(item -> item.getName().equals("Eggs"))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(9, eggs.getAvailableQuantity());
+    }
+
+    @Test
     void updateItemAutoFillsExpiryDateWhenPurchasedWithoutManualDate() {
         User user = user(1L, "sanvi");
-        GroceryItem existing = item(10L, "Bread", "Bakery", 2, false, null, null, user);
-        GroceryItem updated = item(null, "Bread", "Bakery", 1, true, null, null, null);
+        GroceryItem existing = item(10L, "Milk", "Dairy", 2, false, null, null, user);
+        GroceryItem updated = item(null, "Milk", "Dairy", 1, true, null, null, null);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
@@ -272,7 +340,7 @@ class GroceryServiceTest {
 
         GroceryItem saved = groceryService.updateItem("sanvi", 10L, updated);
 
-        assertEquals(LocalDate.now().plusDays(5), saved.getExpiryDate());
+        assertEquals(LocalDate.now().plusDays(3), saved.getExpiryDate());
     }
 
     @Test

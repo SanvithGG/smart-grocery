@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown, CircleUserRound, LogOut } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import api from '../api/client'
-import { clearSession } from '../utils/session'
+import { clearSession, getSession } from '../utils/session'
 
 const AVAILABILITY_THRESHOLD = 3
 const POPUP_DURATION_MS = 7000
@@ -19,7 +20,9 @@ function getPopupCountdown(now, startedAt, durationMs) {
 function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { username } = getSession()
   const [bellOpen, setBellOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [popupOpen, setPopupOpen] = useState(false)
   const [popupStartedAt, setPopupStartedAt] = useState(0)
@@ -29,6 +32,9 @@ function AppShell() {
     const availableItems = items
       .filter((item) => !item.purchased && item.quantity >= AVAILABILITY_THRESHOLD)
       .sort((first, second) => second.quantity - first.quantity)
+    const lowStockItems = items
+      .filter((item) => !item.purchased && item.quantity > 0 && item.quantity < AVAILABILITY_THRESHOLD)
+      .sort((first, second) => first.quantity - second.quantity)
 
     const availabilityNotification =
       availableItems.length > 0
@@ -43,6 +49,15 @@ function AppShell() {
           ]
         : []
 
+    const lowStockNotifications = lowStockItems.map((item) => ({
+      id: `low-stock-${item.id}`,
+      itemId: item.id,
+      type: 'low-stock',
+      title: `${item.name} is running low`,
+      message: `${item.category} | Only ${item.quantity} ${item.quantity === 1 ? 'unit' : 'units'} left`,
+      actionLabel: 'Open Inventory',
+    }))
+
     const expiryNotifications = expiryAlerts.map((alert) => ({
       id: `expiry-${alert.itemId}`,
       itemId: alert.itemId,
@@ -52,7 +67,7 @@ function AppShell() {
       actionLabel: 'Open Reminder',
     }))
 
-    return [...expiryNotifications, ...availabilityNotification]
+    return [...expiryNotifications, ...lowStockNotifications, ...availabilityNotification]
   }
 
   const refreshNotifications = async () => {
@@ -82,6 +97,11 @@ function AppShell() {
     }
 
     navigate('/inventory')
+  }
+
+  const handleToggleProfile = () => {
+    setProfileOpen((current) => !current)
+    setBellOpen(false)
   }
 
   const handleDeleteNotification = async (notification) => {
@@ -271,13 +291,21 @@ function AppShell() {
 
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-8 flex flex-col gap-4 rounded-[32px] border border-white/70 bg-white/70 p-5 shadow-[0_20px_80px_rgba(15,23,42,0.08)] backdrop-blur md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 shadow-inner">
+              <CircleUserRound className="h-6 w-6" />
+            </div>
+            <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">
               Smart Grocery
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Smart Grocery Workspace
             </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Signed in as {username || 'user'}
+            </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -295,14 +323,6 @@ function AppShell() {
                 Buy Queue
               </NavLink>
             </nav>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-            >
-              Logout
-            </button>
 
             <div className="relative">
               <button
@@ -392,6 +412,46 @@ function AppShell() {
                       </article>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Open profile menu"
+                onClick={handleToggleProfile}
+                className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <CircleUserRound className="h-5 w-5" />
+                <ChevronDown className={`h-4 w-4 transition ${profileOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 top-14 z-50 w-64 rounded-[28px] border border-white/70 bg-white/95 p-4 shadow-[0_24px_80px_rgba(15,23,42,0.16)] backdrop-blur">
+                  <div className="rounded-3xl border border-slate-100 bg-slate-50 px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700">
+                      Profile
+                    </p>
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sky-700 shadow-sm">
+                        <CircleUserRound className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{username || 'user'}</p>
+                        <p className="text-xs text-slate-500">Smart Grocery user</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </button>
                 </div>
               )}
             </div>
