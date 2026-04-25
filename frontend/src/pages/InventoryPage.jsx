@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Search, Tag, Filter, Plus, Trash2, CheckCircle, Circle, Package } from 'lucide-react'
 import api, { getApiErrorMessage } from '../api/client'
 import { getNaturalExpiryDate } from '../utils/expiry'
 
@@ -269,8 +270,8 @@ function InventoryPage() {
   return (
     <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
       <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
-          Buy Item
+        <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
+          <Plus size={14} /> Buy Item
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
           Build your purchase flow
@@ -340,9 +341,9 @@ function InventoryPage() {
 
           <button
             type="submit"
-            className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Save Buy Item
+            <Plus size={16} /> Save Buy Item
           </button>
         </form>
 
@@ -377,8 +378,8 @@ function InventoryPage() {
       <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
-              Inventory
+            <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
+              <Package size={14} /> Inventory
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
               Search and filter groceries
@@ -386,36 +387,45 @@ function InventoryPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <input
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-              placeholder="Search"
-            />
-            <select
-              name="category"
-              value={filters.category}
-              onChange={handleFilterChange}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-            <select
-              name="purchased"
-              value={filters.purchased}
-              onChange={handleFilterChange}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-            >
-              <option value="">All Status</option>
-              <option value="true">Purchased</option>
-              <option value="false">Pending</option>
-            </select>
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                name="search"
+                value={filters.search}
+                onChange={handleFilterChange}
+                className="w-full rounded-2xl border border-slate-200 py-3 pl-9 pr-4 text-sm outline-none transition focus:border-sky-500"
+                placeholder="Search"
+              />
+            </div>
+            <div className="relative">
+              <Tag size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                className="w-full rounded-2xl border border-slate-200 py-3 pl-9 pr-4 text-sm outline-none transition focus:border-sky-500"
+              >
+                <option value="">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <select
+                name="purchased"
+                value={filters.purchased}
+                onChange={handleFilterChange}
+                className="w-full rounded-2xl border border-slate-200 py-3 pl-9 pr-4 text-sm outline-none transition focus:border-sky-500"
+              >
+                <option value="">All Status</option>
+                <option value="true">Purchased</option>
+                <option value="false">Pending</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -470,16 +480,17 @@ function InventoryPage() {
                     <button
                       type="button"
                       onClick={() => handleTogglePurchased(item)}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                      className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                     >
+                      {item.purchased ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-slate-400" />}
                       {item.purchased ? 'Move to Pending' : 'Mark as Bought'}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(item.id)}
-                      className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                      className="flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
                     >
-                      Delete
+                      <Trash2 size={14} /> Delete
                     </button>
                   </div>
                 </div>

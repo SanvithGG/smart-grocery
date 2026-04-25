@@ -12,17 +12,19 @@ import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 import HomePage from './pages/HomePage'
 import InventoryPage from './pages/InventoryPage'
+import LandingPage from './pages/LandingPage'
 import ShoppingListPage from './pages/ShoppingListPage'
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<AuthPage mode="login" />} />
       <Route path="/register" element={<AuthPage mode="register" />} />
 
       <Route element={<ProtectedRoute requiredRole="USER" redirectTo="/login" />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/shopping-list" element={<ShoppingListPage />} />

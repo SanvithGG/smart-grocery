@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { LayoutDashboard, ShoppingCart, AlertTriangle, Package, Lightbulb, Clock } from 'lucide-react'
 import api, { getApiErrorMessage } from '../api/client'
 
 const summaryCards = [
-  { key: 'totalItems', label: 'Total Items', accent: 'from-sky-500 to-cyan-400' },
-  { key: 'pendingItems', label: 'Pending', accent: 'from-amber-500 to-orange-400' },
-  { key: 'purchasedItems', label: 'Purchased', accent: 'from-emerald-500 to-lime-400' },
-  { key: 'lowStockItems', label: 'Low Stock', accent: 'from-rose-500 to-pink-400' },
+  { key: 'totalItems', label: 'Total Items', accent: 'from-sky-500 to-cyan-400', icon: Package },
+  { key: 'pendingItems', label: 'Pending', accent: 'from-amber-500 to-orange-400', icon: Clock },
+  { key: 'purchasedItems', label: 'Purchased', accent: 'from-emerald-500 to-lime-400', icon: ShoppingCart },
+  { key: 'lowStockItems', label: 'Low Stock', accent: 'from-rose-500 to-pink-400', icon: AlertTriangle },
 ]
 
 function DashboardPage() {
@@ -18,16 +19,15 @@ function DashboardPage() {
   const [expiryAlerts, setExpiryAlerts] = useState([])
   const [myItems, setMyItems] = useState([])
   const [error, setError] = useState('')
-  const [panelOpen, setPanelOpen] = useState(false)
   const [activeSection, setActiveSection] = useState('')
   const [acknowledgingItemId, setAcknowledgingItemId] = useState('')
 
   const dashboardSections = [
-    { key: 'recommendations', label: 'Smart Picks', sublabel: 'Recommendation queue' },
-    { key: 'low-stock-watchlist', label: 'Action Board', sublabel: 'Low-stock watchlist' },
-    { key: 'kitchen-reminders', label: 'Kitchen Reminder', sublabel: 'Expiry reminders' },
-    { key: 'pending-focus', label: 'Pending Focus', sublabel: 'Items that still need action' },
-    { key: 'recent-list', label: 'Recent List', sublabel: 'Latest grocery activity' },
+    { key: 'recommendations', label: 'Smart Picks', sublabel: 'Recommendation queue', icon: Lightbulb },
+    { key: 'low-stock-watchlist', label: 'Action Board', sublabel: 'Low-stock watchlist', icon: AlertTriangle },
+    { key: 'kitchen-reminders', label: 'Kitchen Reminder', sublabel: 'Expiry reminders', icon: Clock },
+    { key: 'pending-focus', label: 'Pending Focus', sublabel: 'Items that still need action', icon: Package },
+    { key: 'recent-list', label: 'Recent List', sublabel: 'Latest grocery activity', icon: ShoppingCart },
   ]
 
   const formatExpiryDate = (value) => {
@@ -426,33 +426,20 @@ function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {(panelOpen || activeSection) && (
+      {activeSection && (
         <button
           type="button"
           aria-label="Close dashboard overlays"
-          onClick={() => {
-            setPanelOpen(false)
-            setActiveSection('')
-          }}
+          onClick={() => setActiveSection('')}
           className="fixed inset-0 z-30 bg-slate-950/25"
         />
       )}
 
       <section id="overview" className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <article className="overflow-hidden rounded-[32px] border border-sky-100 bg-[linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(30,41,59,0.92)_55%,_rgba(14,165,233,0.72))] p-6 text-white shadow-[0_20px_80px_rgba(15,23,42,0.18)]">
-          <div className="flex items-start justify-between gap-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-200">
-              Dashboard
-            </p>
-            <button
-              type="button"
-              aria-label="Open dashboard sections"
-              onClick={() => setPanelOpen(true)}
-              className="relative z-40 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/15"
-            >
-              ...
-            </button>
-          </div>
+          <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.35em] text-sky-200">
+            <LayoutDashboard size={16} /> Dashboard
+          </p>
           <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight">
             See the grocery list, stock pressure, and next actions in one place.
           </h2>
@@ -505,57 +492,6 @@ function DashboardPage() {
         </article>
       </section>
 
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[300px] flex-col border-r border-white/70 bg-[linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(241,245,249,0.94))] p-5 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur transition-transform duration-300 ${
-          panelOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-700">
-              Dashboard Menu
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Open a section
-            </h2>
-            <p className="mt-2 text-sm text-slate-600">
-              Pick a dashboard block to open it in the main view.
-            </p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close dashboard sections"
-            onClick={() => setPanelOpen(false)}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
-          >
-            X
-          </button>
-        </div>
-
-        <div className="mt-8 space-y-3">
-          {dashboardSections.map((section) => (
-            <button
-              key={section.key}
-              type="button"
-              onClick={() => {
-                setActiveSection(section.key)
-                setPanelOpen(false)
-              }}
-              className={`block w-full rounded-[24px] border px-4 py-4 text-left transition ${
-                activeSection === section.key
-                  ? 'border-slate-900 bg-slate-950 text-white shadow-[0_16px_32px_rgba(15,23,42,0.16)]'
-                  : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <p className="text-sm font-semibold">{section.label}</p>
-              <p className={`mt-1 text-xs ${activeSection === section.key ? 'text-slate-300' : 'text-slate-500'}`}>
-                {section.sublabel}
-              </p>
-            </button>
-          ))}
-        </div>
-      </aside>
-
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
           <article
@@ -563,7 +499,10 @@ function DashboardPage() {
             className="overflow-hidden rounded-[28px] border border-white/60 bg-white/80 p-5 shadow-[0_15px_50px_rgba(15,23,42,0.08)]"
           >
             <div className={`h-2 w-24 rounded-full bg-gradient-to-r ${card.accent}`} />
-            <p className="mt-5 text-sm font-medium text-slate-500">{card.label}</p>
+            <div className="mt-5 flex items-center gap-2">
+              <card.icon size={16} className="text-slate-400" />
+              <p className="text-sm font-medium text-slate-500">{card.label}</p>
+            </div>
             <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
               {summary ? summary[card.key] : '--'}
             </p>
