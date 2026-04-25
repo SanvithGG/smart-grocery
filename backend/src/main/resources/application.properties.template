@@ -5,9 +5,10 @@ spring.datasource.password=YOUR_DB_PASSWORD
 
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+spring.jpa.open-in-view=false
 
 app.jwt.secret=REPLACE_WITH_A_LONG_RANDOM_SECRET
 app.cors.allowed-origins=http://localhost:5173
+app.google.client-id=REPLACE_WITH_GOOGLE_WEB_CLIENT_ID
 app.ai.gemini.api-key=REPLACE_WITH_GEMINI_API_KEY
 app.ai.gemini.model=gemini-2.5-flash

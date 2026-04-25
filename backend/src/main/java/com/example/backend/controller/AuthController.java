@@ -24,6 +24,11 @@ public class AuthController {
         return authService.login(request);
     }
 
+    @PostMapping("/google")
+    public AuthResponse googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        return authService.loginWithGoogle(request);
+    }
+
     @PostMapping("/admin/login")
     public AuthResponse adminLogin(@Valid @RequestBody AuthRequest request) {
         return authService.loginAdmin(request);

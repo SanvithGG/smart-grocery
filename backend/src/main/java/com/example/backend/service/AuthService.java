@@ -1,8 +1,19 @@
 package com.example.backend.service;
 
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.Collections;
+import java.util.Locale;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 
 import com.example.backend.dto.*;
 import com.example.backend.entity.User;
@@ -24,6 +35,9 @@ public class AuthService {
 
     @Autowired
     private JwtUtil jwtUtil;
+
+    @Value("${app.google.client-id:}")
+    private String googleClientId;
 
     public String register(RegisterRequest request) {
         String username = request.getUsername().trim();
@@ -49,6 +63,32 @@ public class AuthService {
         return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
     }
 
+    public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
+        GoogleIdToken.Payload payload = verifyGoogleCredential(request.getCredential());
+        String googleId = payload.getSubject();
+        String email = String.valueOf(payload.getEmail()).trim().toLowerCase();
+        String name = String.valueOf(payload.get("name")).trim();
+
+        User user = userRepository.findByGoogleId(googleId)
+                .or(() -> userRepository.findByEmail(email))
+                .orElseGet(() -> createGoogleUser(name, email, googleId));
+
+        boolean changed = false;
+        if (user.getGoogleId() == null || user.getGoogleId().isBlank()) {
+            user.setGoogleId(googleId);
+            changed = true;
+        }
+        if (user.getProvider() == null || user.getProvider().isBlank() || "LOCAL".equals(user.getProvider())) {
+            user.setProvider("GOOGLE");
+            changed = true;
+        }
+        if (changed) {
+            user = userRepository.save(user);
+        }
+
+        return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
+    }
+
     public AuthResponse loginAdmin(AuthRequest request) {
         User user = authenticate(request);
 
@@ -57,6 +97,60 @@ public class AuthService {
         }
 
         return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
+    }
+
+    private GoogleIdToken.Payload verifyGoogleCredential(String credential) {
+        if (googleClientId == null || googleClientId.isBlank()) {
+            throw new UnauthorizedException("Google login is not configured");
+        }
+
+        try {
+            GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
+                    new NetHttpTransport(),
+                    GsonFactory.getDefaultInstance())
+                    .setAudience(Collections.singletonList(googleClientId.trim()))
+                    .build();
+
+            GoogleIdToken idToken = verifier.verify(credential);
+            if (idToken == null) {
+                throw new UnauthorizedException("Invalid Google credential");
+            }
+
+            GoogleIdToken.Payload payload = idToken.getPayload();
+            if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
+                throw new UnauthorizedException("Google email is not verified");
+            }
+            return payload;
+        } catch (GeneralSecurityException | IOException ex) {
+            throw new UnauthorizedException("Unable to verify Google credential");
+        }
+    }
+
+    private User createGoogleUser(String name, String email, String googleId) {
+        User user = new User();
+        user.setUsername(buildGoogleUsername(name, email));
+        user.setEmail(email);
+        user.setPassword(passwordEncoder.encode("GOOGLE_LOGIN_ONLY"));
+        user.setProvider("GOOGLE");
+        user.setGoogleId(googleId);
+        user.setRole(UserRole.USER);
+        return userRepository.save(user);
+    }
+
+    private String buildGoogleUsername(String name, String email) {
+        String base = !name.isBlank() ? name : email.substring(0, email.indexOf('@'));
+        base = base.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "");
+        if (base.isBlank()) {
+            base = "googleuser";
+        }
+
+        String candidate = base;
+        int counter = 1;
+        while (userRepository.findByUsername(candidate).isPresent()) {
+            candidate = base + counter;
+            counter++;
+        }
+        return candidate;
     }
 
     private User authenticate(AuthRequest request) {
