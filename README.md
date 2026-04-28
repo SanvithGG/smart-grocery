@@ -2,6 +2,14 @@
 
 Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped inventory management, dashboard insights, low-stock alerts, restock recommendations, and home kitchen expiry reminders for purchased items that are close to expiring or expire today.
 
+## Highlights
+
+- JWT authentication with role-based user and admin workspaces
+- Google login support for faster sign-in
+- Inventory, buy queue, dashboard, expiry reminders, and admin reporting
+- AI-assisted catalog suggestion support through Gemini-backed catalog enrichment
+- 50 passing backend tests and passing frontend lint
+
 ## Tech Stack
 
 - Frontend: React (Vite), Tailwind CSS, Axios, React Router
@@ -58,8 +66,8 @@ Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped in
 Smart_Grocery/
   backend/    Spring Boot API
   frontend/   React app
-  STATUS.md   current repo handoff/status
-  PLAN.md     next pending work
+  docs/       project report, screenshots, and diagrams
+  tools/      report/document helper scripts
 ```
 
 ## Prerequisites
@@ -120,10 +128,40 @@ Frontend URL:
 4. Register a user from the frontend.
 5. Login and verify the dashboard and inventory flows.
 
+## Screenshots
+
+User screens:
+
+- Login: `docs/report_assets/ui_auth_login.png`
+- Register: `docs/report_assets/ui_auth_register.png`
+- Home catalog: `docs/report_assets/ui_home_catalog.png`
+- Inventory: `docs/report_assets/ui_inventory.png`
+- Quick buy: `docs/report_assets/ui_quick_buy.png`
+- Shopping list: `docs/report_assets/ui_shopping_list.png`
+- Dashboard overview: `docs/report_assets/ui_dashboard_overview.png`
+- Dashboard recommendations: `docs/report_assets/ui_dashboard_recommendations.png`
+- Dashboard expiry reminders: `docs/report_assets/ui_dashboard_expiry.png`
+
+Admin screens:
+
+- Admin dashboard: `docs/report_assets/ui_admin_dashboard.png`
+- Admin users: `docs/report_assets/ui_admin_users.png`
+- Admin products: `docs/report_assets/ui_admin_products.png`
+- Admin categories: `docs/report_assets/ui_admin_categories.png`
+- Admin purchase queue: `docs/report_assets/ui_admin_purchase_queue.png`
+- Admin reports: `docs/report_assets/ui_admin_reports.png`
+
+Architecture:
+
+- Architecture diagram: `docs/report_assets/architecture_diagram.png`
+- ER diagram: `docs/report_assets/er_diagram.png`
+- Module interaction: `docs/report_assets/module_interaction.png`
+
 ## Verification Status
 
 The latest recorded verification in this repo is:
 
 - `frontend`: `npm run lint`
-- `frontend`: `npm run build`
-- `backend`: `.\mvnw.cmd test` with 32 passing tests
+- `frontend`: `npm run build` may fail in some Windows environments because Vite/Tailwind can hit native binding or `spawn EPERM` issues
+- `backend`: `.\mvnw.cmd test` with 50 passing tests
+- `backend`: `.\mvnw.cmd spring-boot:run` with manual API testing in Postman

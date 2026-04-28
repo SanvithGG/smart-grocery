@@ -2,8 +2,12 @@ package com.example.backend.service;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,6 +50,9 @@ public class AuthService {
         if (userRepository.findByUsername(username).isPresent()) {
             throw new ConflictException("Username already exists");
         }
+        if (!userRepository.findAllByEmailIgnoreCase(email).isEmpty()) {
+            throw new ConflictException("Email already exists");
+        }
 
         User user = new User();
         user.setUsername(username);
@@ -63,6 +70,45 @@ public class AuthService {
         return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
     }
 
+    public ForgotPasswordResponse createPasswordReset(ForgotPasswordRequest request) {
+        User user = findUserByUsernameOrEmail(request.getUsernameOrEmail().trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Account not found"));
+
+        String token = UUID.randomUUID().toString();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(15);
+
+        user.setPasswordResetToken(token);
+        user.setPasswordResetTokenExpiresAt(expiresAt);
+        userRepository.save(user);
+
+        return new ForgotPasswordResponse(
+                "Password reset token generated. Use it within 15 minutes.",
+                token,
+                expiresAt
+        );
+    }
+
+    public String resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByPasswordResetToken(request.getToken().trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid reset token"));
+
+        LocalDateTime expiresAt = user.getPasswordResetTokenExpiresAt();
+        if (expiresAt == null || expiresAt.isBefore(LocalDateTime.now())) {
+            user.setPasswordResetToken(null);
+            user.setPasswordResetTokenExpiresAt(null);
+            userRepository.save(user);
+            throw new UnauthorizedException("Reset token has expired");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setProvider(user.getProvider() == null || user.getProvider().isBlank() ? "LOCAL" : user.getProvider());
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiresAt(null);
+        userRepository.save(user);
+
+        return "Password reset successfully";
+    }
+
     public AuthResponse loginWithGoogle(GoogleLoginRequest request) {
         GoogleIdToken.Payload payload = verifyGoogleCredential(request.getCredential());
         String googleId = payload.getSubject();
@@ -70,7 +116,7 @@ public class AuthService {
         String name = String.valueOf(payload.get("name")).trim();
 
         User user = userRepository.findByGoogleId(googleId)
-                .or(() -> userRepository.findByEmail(email))
+                .or(() -> findLoginUserByEmail(email))
                 .orElseGet(() -> createGoogleUser(name, email, googleId));
 
         boolean changed = false;
@@ -92,7 +138,7 @@ public class AuthService {
     public AuthResponse loginAdmin(AuthRequest request) {
         User user = authenticate(request);
 
-        if (resolveRole(user) != UserRole.ADMIN) {
+        if (resolveRole(user) != UserRole.SUPER_ADMIN) {
             throw new UnauthorizedException("Admin access is required");
         }
 
@@ -155,10 +201,8 @@ public class AuthService {
 
     private User authenticate(AuthRequest request) {
         String credential = request.getUsername().trim();
-        String normalizedCredential = credential.toLowerCase();
 
-        User user = userRepository.findByUsername(credential)
-                .or(() -> userRepository.findByEmail(normalizedCredential))
+        User user = findUserByUsernameOrEmail(credential)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -168,7 +212,26 @@ public class AuthService {
         return user;
     }
 
+    private java.util.Optional<User> findUserByUsernameOrEmail(String credential) {
+        String normalizedCredential = credential.toLowerCase();
+
+        return userRepository.findByUsername(credential)
+                .or(() -> findLoginUserByEmail(normalizedCredential));
+    }
+
+    private java.util.Optional<User> findLoginUserByEmail(String email) {
+        List<User> matches = userRepository.findAllByEmailIgnoreCase(email);
+
+        return matches.stream()
+                .max(Comparator.comparing((User user) -> resolveRole(user) == UserRole.SUPER_ADMIN)
+                        .thenComparing(User::getId));
+    }
+
     private UserRole resolveRole(User user) {
+        if (user.getRole() == UserRole.ADMIN) {
+            return UserRole.SUPER_ADMIN;
+        }
+
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import api, { getApiErrorMessage, getShoppingList } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import { SkeletonCard } from '../components/ui/Skeleton'
+import { useToast } from '../components/ui/toast'
+import { getShoppingList, updateGrocery } from '../services/groceryService'
 
 const DISMISSED_ITEMS_STORAGE_KEY = 'smart-grocery-shopping-list-dismissed'
 const LOW_STOCK_THRESHOLD = 2
@@ -30,6 +35,7 @@ const shoppingHeroStyle = {
 }
 
 function ShoppingListPage() {
+  const toast = useToast()
   const [items, setItems] = useState([])
   const [dismissedItemIds, setDismissedItemIds] = useState([])
   const [loading, setLoading] = useState(false)
@@ -98,7 +104,7 @@ function ShoppingListPage() {
     setUpdatingItemId(item.itemId)
 
     try {
-      await api.put(`/api/grocery/${item.itemId}`, {
+      await updateGrocery(item.itemId, {
         name: item.name,
         category: item.category,
         quantity: nextQuantity,
@@ -108,8 +114,10 @@ function ShoppingListPage() {
 
       await loadShoppingItems()
       window.dispatchEvent(new Event('grocery-data-changed'))
+      toast.success(`${item.name} marked as bought.`)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Could not mark this item as purchased.'))
+      toast.error('Could not update this shopping item.')
     } finally {
       setUpdatingItemId('')
     }
@@ -119,8 +127,8 @@ function ShoppingListPage() {
 
   return (
     <div className="space-y-6">
-      <section
-        className="rounded-4xl border border-emerald-100 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
+      <Card
+        className="border-emerald-100 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
         style={shoppingHeroStyle}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
@@ -133,7 +141,7 @@ function ShoppingListPage() {
           Items show here when quantity is low or expiry is within the next 2 days. Mark them as
           bought to update inventory immediately, or dismiss items from this view.
         </p>
-      </section>
+      </Card>
 
       {error && (
         <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
@@ -141,7 +149,7 @@ function ShoppingListPage() {
         </div>
       )}
 
-      <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+      <Card className="border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
@@ -153,22 +161,18 @@ function ShoppingListPage() {
           </div>
 
           {dismissedItemIds.length > 0 && (
-            <button
+            <Button
               type="button"
               onClick={handleRestoreDismissed}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              variant="secondary"
             >
               Restore dismissed ({dismissedItemIds.length})
-            </button>
+            </Button>
           )}
         </div>
 
         <div className="mt-6 space-y-4">
-          {loading && (
-            <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              Loading smart shopping suggestions...
-            </p>
-          )}
+          {loading && Array.from({ length: 3 }).map((_, index) => <SkeletonCard key={index} lines={4} />)}
 
           {!loading && visibleItems.length === 0 && (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
@@ -221,27 +225,27 @@ function ShoppingListPage() {
                   )}
 
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <button
+                    <Button
                       type="button"
                       onClick={() => handleMarkPurchased(item)}
                       disabled={updatingItemId === item.itemId}
-                      className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      variant="success"
                     >
                       {updatingItemId === item.itemId ? 'Updating...' : 'Bought'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={() => handleDismissItem(item.itemId)}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                      variant="secondary"
                     >
                       Dismiss
-                    </button>
+                    </Button>
                   </div>
                 </article>
               )
             })}
         </div>
-      </section>
+      </Card>
     </div>
   )
 }

@@ -1,19 +1,34 @@
 import { useEffect, useMemo, useState } from 'react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import Input from '../components/ui/Input'
+import { useToast } from '../components/ui/toast'
+import {
+  deleteAdminProduct,
+  getAdminCatalogStock,
+  getAdminProducts,
+  updateAdminCatalogStock,
+  updateAdminProduct,
+} from '../services/adminService'
 
-function AdminProductsPage() {
+function AdminProductsPage({ workspace = 'admin' }) {
+  const toast = useToast()
+  const isSeller = workspace === 'seller'
   const [products, setProducts] = useState([])
   const [catalogStock, setCatalogStock] = useState([])
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [savingProductId, setSavingProductId] = useState(null)
   const [savingCatalogKey, setSavingCatalogKey] = useState('')
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null)
 
   const loadProducts = async () => {
     try {
-      const [{ data: productsData }, { data: catalogStockData }] = await Promise.all([
-        api.get('/api/admin/products'),
-        api.get('/api/admin/catalog-stock'),
+      const [productsData, catalogStockData] = await Promise.all([
+        getAdminProducts(),
+        getAdminCatalogStock(),
       ])
       setProducts(productsData)
       setCatalogStock(catalogStockData.map((item) => ({
@@ -28,11 +43,11 @@ function AdminProductsPage() {
   useEffect(() => {
     let cancelled = false
 
-    Promise.all([api.get('/api/admin/products'), api.get('/api/admin/catalog-stock')])
+    Promise.all([getAdminProducts(), getAdminCatalogStock()])
       .then(([productsResponse, catalogStockResponse]) => {
         if (!cancelled) {
-          setProducts(productsResponse.data)
-          setCatalogStock(catalogStockResponse.data.map((item) => ({
+          setProducts(productsResponse)
+          setCatalogStock(catalogStockResponse.map((item) => ({
             ...item,
             draftQuantity: item.availableQuantity ?? 0,
           })))
@@ -49,14 +64,22 @@ function AdminProductsPage() {
     }
   }, [])
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
+    if (!confirmDeleteProduct) {
+      return
+    }
+
     setError('')
+    setSavingProductId(confirmDeleteProduct.id)
 
     try {
-      await api.delete(`/api/admin/products/${id}`)
+      await deleteAdminProduct(confirmDeleteProduct.id)
       await loadProducts()
+      setConfirmDeleteProduct(null)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to delete product.'))
+    } finally {
+      setSavingProductId(null)
     }
   }
 
@@ -94,11 +117,12 @@ function AdminProductsPage() {
     setSavingProductId(product.id)
 
     try {
-      await api.put(`/api/admin/products/${product.id}`, {
+      await updateAdminProduct(product.id, {
         ...product,
         quantity: Number(product.quantity),
       })
       await loadProducts()
+      toast.success(`${product.name} quantity saved.`)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to update product quantity.'))
     } finally {
@@ -112,12 +136,13 @@ function AdminProductsPage() {
     setSavingCatalogKey(stockKey)
 
     try {
-      await api.put('/api/admin/catalog-stock', {
+      await updateAdminCatalogStock({
         name: item.name,
         category: item.category,
         quantity: Number(item.draftQuantity),
       })
       await loadProducts()
+      toast.success(`${item.name} stock saved.`)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to update catalog stock.'))
     } finally {
@@ -127,24 +152,40 @@ function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-4xl border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-700">Manage Products</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">All grocery products</h2>
-        <p className="mt-3 max-w-3xl text-sm text-slate-500">
-          Admin controls store stock. Users can see stock state, but only admin can restock items
-          or change catalog quantity.
-        </p>
-        <input
+      <ConfirmDialog
+        open={Boolean(confirmDeleteProduct)}
+        title="Delete product?"
+        description={
+          confirmDeleteProduct
+            ? `${confirmDeleteProduct.name} will be removed from the product list.`
+            : 'Delete the selected product.'
+        }
+        confirmLabel="Delete Product"
+        busy={savingProductId === confirmDeleteProduct?.id}
+        onConfirm={handleDelete}
+        onClose={() => setConfirmDeleteProduct(null)}
+      />
+
+      <Card
+        eyebrow={isSeller ? 'Seller Products' : 'Manage Products'}
+        title="All grocery products"
+        description={
+          isSeller
+            ? 'Manage store stock, product quantities, and user purchase requests.'
+            : 'Super admin controls store stock. Users can see stock state, but only seller or super admin can restock items or change catalog quantity.'
+        }
+      >
+        <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="mt-5 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+          className="mt-5"
           placeholder="Search by product, category, or user"
         />
-      </section>
+      </Card>
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
-      <section className="rounded-4xl border border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
+      <Card className="border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Catalog Stock</p>
@@ -180,27 +221,28 @@ function AdminProductsPage() {
 
                 <p className="mt-4 text-sm text-slate-500">Current store quantity</p>
                 <div className="mt-2 flex items-center gap-3">
-                  <input
+                  <Input
                     type="number"
                     min="0"
                     value={item.draftQuantity}
                     onChange={(event) => handleCatalogQuantityChange(item.name, item.category, event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                    className="w-full"
                   />
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleSaveCatalogQuantity(item)}
                     disabled={isSavingCatalog}
-                    className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    variant="success"
+                    className="py-3"
                   >
                     {isSavingCatalog ? 'Saving...' : 'Save'}
-                  </button>
+                  </Button>
                 </div>
               </article>
             )
           })}
         </div>
-      </section>
+      </Card>
 
       <div className="grid gap-4">
         {filteredProducts.map((product) => (
@@ -219,28 +261,29 @@ function AdminProductsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <input
+                <Input
                   type="number"
                   min="0"
                   value={product.quantity}
                   onChange={(event) => handleProductQuantityChange(product.id, event.target.value)}
-                  className="w-28 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-sky-500"
+                  className="w-28"
+                  inputClassName="py-2"
                 />
-                <button
+                <Button
                   type="button"
                   onClick={() => handleSaveProductQuantity(product)}
                   disabled={savingProductId === product.id}
-                  className="rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  variant="sky"
                 >
                   {savingProductId === product.id ? 'Saving...' : 'Set Quantity'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  onClick={() => handleDelete(product.id)}
-                  className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                  onClick={() => setConfirmDeleteProduct(product)}
+                  variant="danger"
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </article>

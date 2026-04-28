@@ -6,17 +6,24 @@ import com.example.backend.dto.AdminCatalogStockUpdateRequest;
 import com.example.backend.dto.AdminDashboardResponse;
 import com.example.backend.dto.AdminProductResponse;
 import com.example.backend.dto.AdminReportsResponse;
+import com.example.backend.dto.AdminSellerOrderResponse;
+import com.example.backend.dto.AdminSellerProductResponse;
 import com.example.backend.dto.AdminUserRoleUpdateRequest;
 import com.example.backend.dto.AdminUserSummaryResponse;
 import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.entity.GroceryItem;
+import com.example.backend.entity.SellerOrder;
+import com.example.backend.entity.SellerProduct;
 import com.example.backend.entity.User;
 import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.GroceryRepository;
+import com.example.backend.repository.SellerOrderRepository;
+import com.example.backend.repository.SellerProductRepository;
 import com.example.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -31,11 +38,21 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final GroceryRepository groceryRepository;
+    private final SellerProductRepository sellerProductRepository;
+    private final SellerOrderRepository sellerOrderRepository;
     private final GroceryService groceryService;
 
-    public AdminService(UserRepository userRepository, GroceryRepository groceryRepository, GroceryService groceryService) {
+    public AdminService(
+            UserRepository userRepository,
+            GroceryRepository groceryRepository,
+            SellerProductRepository sellerProductRepository,
+            SellerOrderRepository sellerOrderRepository,
+            GroceryService groceryService
+    ) {
         this.userRepository = userRepository;
         this.groceryRepository = groceryRepository;
+        this.sellerProductRepository = sellerProductRepository;
+        this.sellerOrderRepository = sellerOrderRepository;
         this.groceryService = groceryService;
     }
 
@@ -98,16 +115,15 @@ public class AdminService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        UserRole nextRole;
-        try {
-            nextRole = UserRole.valueOf(request.getRole().trim().toUpperCase());
-        } catch (IllegalArgumentException exception) {
-            throw new ConflictException("Role must be USER or ADMIN");
+        UserRole nextRole = parseRole(request.getRole());
+
+        if (nextRole == UserRole.ADMIN) {
+            nextRole = UserRole.SUPER_ADMIN;
         }
 
-        if (resolveRole(user) == UserRole.ADMIN && nextRole == UserRole.USER
-                && userRepository.countByRole(UserRole.ADMIN) <= 1) {
-            throw new ConflictException("At least one admin account must remain");
+        if (isSuperAdmin(user) && nextRole != UserRole.SUPER_ADMIN
+                && countSuperAdmins() <= 1) {
+            throw new ConflictException("At least one super admin account must remain");
         }
 
         user.setRole(nextRole);
@@ -132,12 +148,13 @@ public class AdminService {
         );
     }
 
+    @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (resolveRole(user) == UserRole.ADMIN && userRepository.countByRole(UserRole.ADMIN) <= 1) {
-            throw new ConflictException("At least one admin account must remain");
+        if (isSuperAdmin(user) && countSuperAdmins() <= 1) {
+            throw new ConflictException("At least one super admin account must remain");
         }
 
         groceryRepository.deleteByUserId(user.getId());
@@ -203,6 +220,18 @@ public class AdminService {
                 .sorted(Comparator.comparing(GroceryItem::getCategory, String.CASE_INSENSITIVE_ORDER)
                         .thenComparing(GroceryItem::getName, String.CASE_INSENSITIVE_ORDER))
                 .map(this::mapProduct)
+                .toList();
+    }
+
+    public List<AdminSellerProductResponse> getSellerProducts() {
+        return sellerProductRepository.findAllByOrderByUpdatedAtDesc().stream()
+                .map(this::mapSellerProduct)
+                .toList();
+    }
+
+    public List<AdminSellerOrderResponse> getSellerOrders() {
+        return sellerOrderRepository.findAllByOrderByOrderedAtDesc().stream()
+                .map(this::mapSellerOrder)
                 .toList();
     }
 
@@ -273,7 +302,70 @@ public class AdminService {
         );
     }
 
+    private AdminSellerProductResponse mapSellerProduct(SellerProduct product) {
+        User seller = product.getSeller();
+
+        return new AdminSellerProductResponse(
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                product.getPrice(),
+                product.getStock(),
+                product.getExpiryDate(),
+                product.isActive(),
+                product.getUpdatedAt(),
+                seller == null ? "Unknown" : seller.getUsername(),
+                seller == null ? "" : seller.getEmail()
+        );
+    }
+
+    private AdminSellerOrderResponse mapSellerOrder(SellerOrder order) {
+        User seller = order.getSeller();
+
+        return new AdminSellerOrderResponse(
+                order.getId(),
+                order.getProductName(),
+                order.getCategory(),
+                order.getQuantity(),
+                order.getUnitPrice(),
+                order.getTotalPrice(),
+                order.getCustomerName(),
+                seller == null ? "Unknown" : seller.getUsername(),
+                seller == null ? "" : seller.getEmail(),
+                order.getStatus().name(),
+                order.getOrderedAt()
+        );
+    }
+
     private UserRole resolveRole(User user) {
+        if (user.getRole() == UserRole.ADMIN) {
+            return UserRole.SUPER_ADMIN;
+        }
+
         return user.getRole() == null ? UserRole.USER : user.getRole();
+    }
+
+    private UserRole parseRole(String role) {
+        String normalizedRole = role.trim().toUpperCase();
+
+        if (normalizedRole.equals("SUPERADMIN")) {
+            normalizedRole = "SUPER_ADMIN";
+        }
+
+        try {
+            return UserRole.valueOf(normalizedRole);
+        } catch (IllegalArgumentException exception) {
+            throw new ConflictException("Role must be USER, SELLER, or SUPER_ADMIN");
+        }
+    }
+
+    private boolean isSuperAdmin(User user) {
+        return resolveRole(user) == UserRole.SUPER_ADMIN;
+    }
+
+    private long countSuperAdmins() {
+        return userRepository.findAll().stream()
+                .filter(this::isSuperAdmin)
+                .count();
     }
 }

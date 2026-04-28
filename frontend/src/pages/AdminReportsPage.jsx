@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Card from '../components/ui/Card'
+import { getAdminReports } from '../services/adminService'
 
 function AdminReportsPage() {
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api.get('/api/admin/reports')
-      .then(({ data }) => setReport(data))
+    getAdminReports()
+      .then((data) => setReport(data))
       .catch((requestError) => {
         setError(getApiErrorMessage(requestError, 'Unable to load reports.'))
       })
@@ -25,10 +27,7 @@ function AdminReportsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-4xl border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-700">Reports / Analytics</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Operational reporting</h2>
-      </section>
+      <Card eyebrow="Reports / Analytics" title="Operational reporting" />
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 

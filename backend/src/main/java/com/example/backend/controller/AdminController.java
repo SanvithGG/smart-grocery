@@ -6,6 +6,8 @@ import com.example.backend.dto.AdminCatalogStockUpdateRequest;
 import com.example.backend.dto.AdminDashboardResponse;
 import com.example.backend.dto.AdminProductResponse;
 import com.example.backend.dto.AdminReportsResponse;
+import com.example.backend.dto.AdminSellerOrderResponse;
+import com.example.backend.dto.AdminSellerProductResponse;
 import com.example.backend.dto.AdminUserRoleUpdateRequest;
 import com.example.backend.dto.AdminUserSummaryResponse;
 import com.example.backend.dto.CatalogItemResponse;
@@ -77,6 +79,16 @@ public class AdminController {
     @GetMapping("/purchase-queue")
     public List<AdminProductResponse> getPurchaseQueue() {
         return adminService.getPurchaseQueue();
+    }
+
+    @GetMapping("/seller-products")
+    public List<AdminSellerProductResponse> getSellerProducts() {
+        return adminService.getSellerProducts();
+    }
+
+    @GetMapping("/seller-orders")
+    public List<AdminSellerOrderResponse> getSellerOrders() {
+        return adminService.getSellerOrders();
     }
 
     @PostMapping("/purchase-queue/{id}/fulfill")

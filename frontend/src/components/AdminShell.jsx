@@ -8,6 +8,7 @@ import {
   MoonStar,
   SunMedium,
   ShoppingCart,
+  Store,
   Tags,
   Users,
 } from "lucide-react";
@@ -18,7 +19,7 @@ import "./AdminShell.css";
 
 const ADMIN_THEME_STORAGE_KEY = "smart-grocery-admin-theme";
 
-function AdminShell() {
+function AdminShell({ workspace = "admin" }) {
   const navigate = useNavigate();
   const { username } = getSession();
   const accountRef = useRef(null);
@@ -43,18 +44,41 @@ function AdminShell() {
         : "border-transparent bg-transparent text-slate-600 hover:border-white/80 hover:bg-white/80 hover:text-slate-900",
     ].join(" ");
 
-  const navigationItems = [
-    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
-    { to: "/admin/users", label: "Users", icon: Users },
-    { to: "/admin/products", label: "Products", icon: Boxes },
-    { to: "/admin/categories", label: "Categories", icon: Tags },
-    {
-      to: "/admin/purchase-queue",
-      label: "Purchase Queue",
-      icon: ShoppingCart,
-    },
-    { to: "/admin/reports", label: "Reports", icon: BarChart3 },
-  ];
+  const isSellerWorkspace = workspace === "seller";
+  const isSuperAdminWorkspace = workspace === "superadmin";
+  const navigationItems = isSellerWorkspace
+    ? [
+        { to: "/seller", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/seller/products", label: "Products", icon: Boxes },
+        { to: "/seller/orders", label: "Orders", icon: ShoppingCart },
+        { to: "/seller/analytics", label: "Analytics", icon: BarChart3 },
+      ]
+    : isSuperAdminWorkspace
+      ? [
+          { to: "/super-admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+          { to: "/superadmin/users", label: "Users", icon: Users },
+          { to: "/superadmin/sellers", label: "Sellers", icon: Store },
+          { to: "/superadmin/analytics", label: "Analytics", icon: BarChart3 },
+        ]
+      : [
+          { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+          { to: "/admin/users", label: "Users", icon: Users },
+          { to: "/admin/products", label: "Products", icon: Boxes },
+          { to: "/admin/categories", label: "Categories", icon: Tags },
+          {
+            to: "/admin/purchase-queue",
+            label: "Purchase Queue",
+            icon: ShoppingCart,
+          },
+          { to: "/admin/reports", label: "Reports", icon: BarChart3 },
+        ];
+  const workspaceEyebrow = isSellerWorkspace ? "Seller Workspace" : "Super Admin Workspace";
+  const workspaceTitle = isSellerWorkspace
+    ? "Smart Grocery seller center"
+    : "Smart Grocery control center";
+  const workspaceDescription = isSellerWorkspace
+    ? "Smart Grocery seller workspace"
+    : "Smart Grocery super admin workspace";
 
   const handleLogout = () => {
     clearSession();
@@ -88,7 +112,9 @@ function AdminShell() {
 
   return (
     <div
-      className={`admin-shell min-h-screen text-slate-900 ${isDark ? "admin-theme-dark" : "admin-theme-light"}`}
+      className={`admin-shell min-h-screen text-slate-900 ${
+        isSuperAdminWorkspace ? "admin-shell-superadmin" : ""
+      } ${isDark ? "admin-theme-dark" : "admin-theme-light"}`}
     >
       <header className="border-b border-white/70 bg-white/75 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
@@ -98,10 +124,10 @@ function AdminShell() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-sky-700">
-                Admin Workspace
+                {workspaceEyebrow}
               </p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                Smart Grocery control center
+                {workspaceTitle}
               </h1>
               <p className="mt-1 text-sm text-slate-500">
                 Signed in as {username || "admin"}
@@ -199,7 +225,7 @@ function AdminShell() {
                     Hi, {accountLabel}!
                   </h3>
                   <p className="mt-2 text-sm text-slate-500">
-                    Smart Grocery admin workspace
+                    {workspaceDescription}
                   </p>
                 </div>
 

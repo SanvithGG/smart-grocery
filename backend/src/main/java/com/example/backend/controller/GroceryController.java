@@ -4,9 +4,13 @@ import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
+import com.example.backend.dto.SellerOrderCreateRequest;
+import com.example.backend.dto.SellerOrderResponse;
+import com.example.backend.dto.SellerProductResponse;
 import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
 import com.example.backend.service.GroceryService;
+import com.example.backend.service.SellerService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +24,9 @@ public class GroceryController {
 
     @Autowired
     private GroceryService groceryService;
+
+    @Autowired
+    private SellerService sellerService;
 
     @GetMapping
     public List<GroceryItem> getItems(
@@ -43,6 +50,20 @@ public class GroceryController {
             @RequestParam(required = false) String search
     ) {
         return groceryService.getCatalogItems(principal.getName(), category, search);
+    }
+
+    @GetMapping("/seller-products")
+    public List<SellerProductResponse> getSellerProducts() {
+        return sellerService.getAvailableProducts();
+    }
+
+    @PostMapping("/seller-products/{id}/order")
+    public SellerOrderResponse createSellerOrder(
+            Principal principal,
+            @PathVariable Long id,
+            @Valid @RequestBody SellerOrderCreateRequest request
+    ) {
+        return sellerService.createMarketplaceOrder(principal.getName(), id, request);
     }
 
     @GetMapping("/low-stock")

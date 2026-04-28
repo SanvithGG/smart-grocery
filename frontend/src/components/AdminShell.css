@@ -63,11 +63,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 2.45rem;
-  width: 2.45rem;
+  height: 2.35rem;
+  width: 2.35rem;
   border-radius: 999px;
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  padding: 1px;
+  border: 1px solid rgba(203, 213, 225, 0.95);
+  background: #ffffff;
 }
 
 .admin-avatar-core {
@@ -77,20 +77,18 @@
   height: 100%;
   width: 100%;
   border-radius: 999px;
-  background: #ffffff;
+  background: transparent;
   font-size: 0.95rem;
   font-weight: 700;
   color: #0f172a;
 }
 
 .admin-avatar-ring-large {
-  height: 5rem;
-  width: 5rem;
+  height: 4.5rem;
+  width: 4.5rem;
 }
 
 .admin-avatar-core-large {
-  height: 4.4rem;
-  width: 4.4rem;
   font-size: 1.4rem;
 }
 
@@ -106,6 +104,42 @@
 
 .admin-theme-light {
   background: radial-gradient(circle at top, #dbeafe, #f8fafc 42%, #cbd5e1);
+}
+
+.admin-shell-superadmin.admin-theme-light {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(circle at top, #dbeafe, #f8fafc 42%, #cbd5e1);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.admin-shell-superadmin.admin-theme-light header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  background: #ffffff;
+  backdrop-filter: none;
+}
+
+.admin-shell-superadmin.admin-theme-light main {
+  position: relative;
+  z-index: 1;
+  padding-top: 8.5rem;
+}
+
+.admin-shell-superadmin.admin-theme-light .admin-account-panel {
+  z-index: 80;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+@media (min-width: 1024px) {
+  .admin-shell-superadmin.admin-theme-light main {
+    padding-top: 9rem;
+  }
 }
 
 .admin-theme-dark {
@@ -145,12 +179,12 @@
 }
 
 .admin-theme-dark .admin-avatar-core {
-  background: #111111;
   color: #f5f5f5;
 }
 
 .admin-theme-dark .admin-avatar-ring {
-  background: linear-gradient(180deg, #3f3f46 0%, #27272a 100%);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(24, 24, 24, 0.98);
 }
 
 .admin-theme-dark main > div > section:first-child,
@@ -318,4 +352,61 @@
 
 .admin-theme-dark .shadow-inner {
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.04);
+}
+
+.admin-theme-dark .smart-insight-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
+}
+
+.admin-theme-dark .smart-insight-card:hover {
+  box-shadow: 0 26px 76px rgba(0, 0, 0, 0.46);
+}
+
+.admin-theme-dark .smart-insight-card-sky {
+  background: linear-gradient(135deg, rgba(8, 47, 73, 0.94), rgba(14, 165, 233, 0.14));
+  color: #67e8f9;
+}
+
+.admin-theme-dark .smart-insight-card-emerald {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.9), rgba(16, 185, 129, 0.13));
+  color: #6ee7b7;
+}
+
+.admin-theme-dark .smart-insight-card-amber {
+  background: linear-gradient(135deg, rgba(69, 45, 12, 0.92), rgba(245, 158, 11, 0.14));
+  color: #fcd34d;
+}
+
+.admin-theme-dark .smart-insight-card-rose {
+  background: linear-gradient(135deg, rgba(76, 5, 25, 0.9), rgba(244, 63, 94, 0.14));
+  color: #fda4af;
+}
+
+.admin-theme-dark .smart-insight-card-violet {
+  background: linear-gradient(135deg, rgba(46, 16, 101, 0.9), rgba(139, 92, 246, 0.15));
+  color: #c4b5fd;
+}
+
+.admin-theme-dark .smart-insight-card-title {
+  color: #ffffff;
+}
+
+.admin-theme-dark .smart-insight-card-message {
+  color: #cbd5e1;
+}
+
+.admin-theme-dark .smart-insight-card-meta {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.34);
+  color: currentColor;
+}
+
+.admin-theme-dark .smart-insight-card-action {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.admin-theme-dark .smart-insight-card-action:hover {
+  background: rgba(255, 255, 255, 0.16);
 }

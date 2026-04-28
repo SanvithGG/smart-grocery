@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import ConfirmDialog from '../components/ui/ConfirmDialog'
+import {
+  deleteAdminUser,
+  getAdminUsers,
+  updateAdminUserRole,
+} from '../services/adminService'
+
+const roleOptions = [
+  { value: 'USER', label: 'Set As User' },
+  { value: 'SELLER', label: 'Set As Seller' },
+  { value: 'SUPER_ADMIN', label: 'Set As Super Admin' },
+]
 
 function AdminUsersPage() {
   const [users, setUsers] = useState([])
   const [error, setError] = useState('')
   const [savingId, setSavingId] = useState(null)
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState(null)
 
   const loadUsers = async () => {
     try {
-      const { data } = await api.get('/api/admin/users')
-      setUsers(data)
+      setUsers(await getAdminUsers())
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load users.'))
     }
@@ -19,14 +33,12 @@ function AdminUsersPage() {
     loadUsers()
   }, [])
 
-  const handleRoleToggle = async (user) => {
+  const handleRoleChange = async (user, role) => {
     setSavingId(user.id)
     setError('')
 
     try {
-      await api.put(`/api/admin/users/${user.id}/role`, {
-        role: user.role === 'ADMIN' ? 'USER' : 'ADMIN',
-      })
+      await updateAdminUserRole(user.id, role)
       await loadUsers()
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to update user role.'))
@@ -35,13 +47,18 @@ function AdminUsersPage() {
     }
   }
 
-  const handleDeleteUser = async (user) => {
-    setSavingId(user.id)
+  const handleDeleteUser = async () => {
+    if (!confirmDeleteUser) {
+      return
+    }
+
+    setSavingId(confirmDeleteUser.id)
     setError('')
 
     try {
-      await api.delete(`/api/admin/users/${user.id}`)
+      await deleteAdminUser(confirmDeleteUser.id)
       await loadUsers()
+      setConfirmDeleteUser(null)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to delete user.'))
     } finally {
@@ -51,10 +68,21 @@ function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-4xl border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-700">Manage Users</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Users and roles</h2>
-      </section>
+      <ConfirmDialog
+        open={Boolean(confirmDeleteUser)}
+        title="Delete user account?"
+        description={
+          confirmDeleteUser
+            ? `${confirmDeleteUser.username} and their related grocery items will be removed.`
+            : 'Delete the selected user account.'
+        }
+        confirmLabel="Delete User"
+        busy={savingId === confirmDeleteUser?.id}
+        onConfirm={handleDeleteUser}
+        onClose={() => setConfirmDeleteUser(null)}
+      />
+
+      <Card eyebrow="Manage Users" title="Users and roles" />
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
@@ -76,26 +104,27 @@ function AdminUsersPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <button
+                {roleOptions
+                  .filter((roleOption) => roleOption.value !== user.role)
+                  .map((roleOption) => (
+                    <Button
+                      key={`${user.id}-${roleOption.value}`}
+                      type="button"
+                      onClick={() => handleRoleChange(user, roleOption.value)}
+                      disabled={savingId === user.id}
+                      variant="secondary"
+                    >
+                      {savingId === user.id ? 'Saving...' : roleOption.label}
+                    </Button>
+                  ))}
+                <Button
                   type="button"
-                  onClick={() => handleRoleToggle(user)}
+                  onClick={() => setConfirmDeleteUser(user)}
                   disabled={savingId === user.id}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
-                >
-                  {savingId === user.id
-                    ? 'Saving...'
-                    : user.role === 'ADMIN'
-                      ? 'Set As User'
-                      : 'Set As Admin'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteUser(user)}
-                  disabled={savingId === user.id}
-                  className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100 disabled:opacity-60"
+                  variant="danger"
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           </article>

@@ -32,6 +32,10 @@ public class CustomUserDetailsService implements UserDetailsService{
     }
 
     private UserRole resolveRole(User user) {
+        if (user.getRole() == UserRole.ADMIN) {
+            return UserRole.SUPER_ADMIN;
+        }
+
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }

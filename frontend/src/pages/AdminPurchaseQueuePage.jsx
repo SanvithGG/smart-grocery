@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import { fulfillAdminPurchase, getAdminPurchaseQueue } from '../services/adminService'
 
 function AdminPurchaseQueuePage() {
   const [items, setItems] = useState([])
@@ -8,8 +11,7 @@ function AdminPurchaseQueuePage() {
 
   const loadQueue = async () => {
     try {
-      const { data } = await api.get('/api/admin/purchase-queue')
-      setItems(data)
+      setItems(await getAdminPurchaseQueue())
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load purchase queue.'))
     }
@@ -33,7 +35,7 @@ function AdminPurchaseQueuePage() {
     setProcessingId(itemId)
 
     try {
-      await api.post(`/api/admin/purchase-queue/${itemId}/fulfill`)
+      await fulfillAdminPurchase(itemId)
       await loadQueue()
       window.dispatchEvent(new Event('grocery-data-changed'))
     } catch (requestError) {
@@ -45,14 +47,11 @@ function AdminPurchaseQueuePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-4xl border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-700">Manage Purchase Queue</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Pending purchases across users</h2>
-        <p className="mt-3 max-w-3xl text-sm text-slate-500">
-          Approve queued user purchases here. When admin completes a purchase, catalog stock is reduced
-          and the item moves out of the pending queue.
-        </p>
-      </section>
+      <Card
+        eyebrow="Manage Purchase Queue"
+        title="Pending purchases across users"
+        description="Approve queued user purchases here. When admin completes a purchase, catalog stock is reduced and the item moves out of the pending queue."
+      />
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
@@ -73,14 +72,14 @@ function AdminPurchaseQueuePage() {
                 </p>
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={() => handleFulfill(item.id)}
                 disabled={processingId === item.id}
-                className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                variant="success"
               >
                 {processingId === item.id ? 'Processing...' : 'Complete Purchase'}
-              </button>
+              </Button>
             </div>
           </article>
         ))}

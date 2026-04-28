@@ -2,6 +2,7 @@ package com.example.backend.controller;
 
 import com.example.backend.authentication.JwtFilter;
 import com.example.backend.dto.AuthResponse;
+import com.example.backend.dto.ForgotPasswordResponse;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.UnauthorizedException;
 import com.example.backend.service.AuthService;
@@ -15,6 +16,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -116,6 +118,38 @@ class AuthControllerTest {
     }
 
     @Test
+    void forgotPasswordReturnsResetToken() throws Exception {
+        when(authService.createPasswordReset(any())).thenReturn(new ForgotPasswordResponse(
+                "Password reset token generated. Use it within 15 minutes.",
+                "reset-token",
+                LocalDateTime.of(2026, 4, 26, 12, 0)
+        ));
+
+        mockMvc.perform(post("/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "usernameOrEmail", "sanvi@example.com"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Password reset token generated. Use it within 15 minutes."))
+                .andExpect(jsonPath("$.resetToken").value("reset-token"));
+    }
+
+    @Test
+    void resetPasswordReturnsSuccessMessage() throws Exception {
+        when(authService.resetPassword(any())).thenReturn("Password reset successfully");
+
+        mockMvc.perform(post("/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "token", "reset-token",
+                                "newPassword", "new-password-123"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Password reset successfully"));
+    }
+
+    @Test
     void registerReturnsConflictForDuplicateUsername() throws Exception {
         when(authService.register(any())).thenThrow(new ConflictException("Username already exists"));
 
@@ -146,7 +180,7 @@ class AuthControllerTest {
 
     @Test
     void adminLoginReturnsTokenResponse() throws Exception {
-        when(authService.loginAdmin(any())).thenReturn(new AuthResponse("admin-token", "admin", "ADMIN"));
+        when(authService.loginAdmin(any())).thenReturn(new AuthResponse("admin-token", "admin", "SUPER_ADMIN"));
 
         mockMvc.perform(post("/auth/admin/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -157,6 +191,6 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("admin-token"))
                 .andExpect(jsonPath("$.username").value("admin"))
-                .andExpect(jsonPath("$.role").value("ADMIN"));
+                .andExpect(jsonPath("$.role").value("SUPER_ADMIN"));
     }
 }

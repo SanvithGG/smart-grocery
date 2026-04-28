@@ -8,7 +8,7 @@ spring.jpa.show-sql=true
 spring.jpa.open-in-view=false
 
 app.jwt.secret=REPLACE_WITH_A_LONG_RANDOM_SECRET
-app.cors.allowed-origins=http://localhost:5173
+app.cors.allowed-origins=http://localhost:5173,http://localhost:3000,http://localhost:*,http://127.0.0.1:*
 app.google.client-id=REPLACE_WITH_GOOGLE_WEB_CLIENT_ID
 app.ai.gemini.api-key=REPLACE_WITH_GEMINI_API_KEY
 app.ai.gemini.model=gemini-2.5-flash

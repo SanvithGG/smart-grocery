@@ -21,21 +21,26 @@ public class AdminBootstrapConfig {
             @Value("${app.admin.seed.password:Admin@123}") String password
     ) {
         return args -> {
-            User existingAdmin = userRepository.findByUsername(username).orElse(null);
+            String normalizedUsername = username.trim();
+            String normalizedEmail = email.trim().toLowerCase();
+
+            User existingAdmin = userRepository.findByUsername(normalizedUsername)
+                    .or(() -> userRepository.findByEmail(normalizedEmail))
+                    .orElse(null);
             if (existingAdmin != null) {
-                existingAdmin.setEmail(email.trim().toLowerCase());
-                if (existingAdmin.getRole() == null) {
-                    existingAdmin.setRole(UserRole.ADMIN);
-                }
+                existingAdmin.setUsername(normalizedUsername);
+                existingAdmin.setEmail(normalizedEmail);
+                existingAdmin.setPassword(passwordEncoder.encode(password));
+                existingAdmin.setRole(UserRole.SUPER_ADMIN);
                 userRepository.save(existingAdmin);
                 return;
             }
 
             User admin = new User();
-            admin.setUsername(username.trim());
-            admin.setEmail(email.trim().toLowerCase());
+            admin.setUsername(normalizedUsername);
+            admin.setEmail(normalizedEmail);
             admin.setPassword(passwordEncoder.encode(password));
-            admin.setRole(UserRole.ADMIN);
+            admin.setRole(UserRole.SUPER_ADMIN);
             userRepository.save(admin);
         };
     }

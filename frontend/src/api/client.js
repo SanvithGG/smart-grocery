@@ -51,10 +51,4 @@ export function getApiErrorMessage(error, fallbackMessage) {
 
   return fallbackMessage
 }
-
-export const getShoppingList = async () => {
-  const response = await api.get('/api/grocery/shopping-list')
-  return response.data
-}
-
 export default api

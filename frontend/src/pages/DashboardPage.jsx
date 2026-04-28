@@ -1,7 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ShoppingCart, AlertTriangle, Package, Lightbulb, Clock } from 'lucide-react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import { SkeletonCard } from '../components/ui/Skeleton'
+import SmartInsightCard from '../components/ui/SmartInsightCard'
+import { useToast } from '../components/ui/toast'
+import {
+  acknowledgeExpiryAlert,
+  getExpiryAlerts,
+  getGroceries,
+  getLowStock,
+  getRecommendations,
+  getSellerProducts,
+  getSummary,
+} from '../services/groceryService'
+import { buildDashboardSmartInsights, findSellerMatchesForItem } from '../utils/smartSuggestions'
 
 const summaryCards = [
   { key: 'totalItems', label: 'Total Items', accent: 'from-sky-500 to-cyan-400', icon: Package },
@@ -11,14 +25,17 @@ const summaryCards = [
 ]
 
 function DashboardPage() {
+  const toast = useToast()
   const location = useLocation()
   const navigate = useNavigate()
   const [summary, setSummary] = useState(null)
   const [recommendations, setRecommendations] = useState([])
   const [lowStockItems, setLowStockItems] = useState([])
+  const [sellerProducts, setSellerProducts] = useState([])
   const [expiryAlerts, setExpiryAlerts] = useState([])
   const [myItems, setMyItems] = useState([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
   const [activeSection, setActiveSection] = useState('')
   const [acknowledgingItemId, setAcknowledgingItemId] = useState('')
 
@@ -38,27 +55,44 @@ function DashboardPage() {
     return new Date(`${value}T00:00:00`).toLocaleDateString()
   }
 
+  const findSellerMatches = (item) => {
+    const itemName = (item.name || '').trim().toLowerCase()
+    const itemCategory = (item.category || '').trim().toLowerCase()
+
+    return findSellerMatchesForItem({ ...item, name: itemName, category: itemCategory }, sellerProducts).slice(0, 3)
+  }
+
   const fetchDashboardData = async () => {
     const results = await Promise.allSettled([
-      api.get('/api/grocery/summary'),
-      api.get('/api/grocery/recommendations'),
-      api.get('/api/grocery/low-stock'),
-      api.get('/api/grocery/expiry-alerts'),
-      api.get('/api/grocery'),
+      getSummary(),
+      getRecommendations(),
+      getLowStock(),
+      getExpiryAlerts(),
+      getGroceries(),
+      getSellerProducts(),
     ])
 
-    const [summaryResult, recommendationsResult, lowStockResult, expiryAlertsResult, myItemsResult] = results
+    const [
+      summaryResult,
+      recommendationsResult,
+      lowStockResult,
+      expiryAlertsResult,
+      myItemsResult,
+      sellerProductsResult,
+    ] = results
     const failures = results.filter((result) => result.status === 'rejected')
 
-    return {
-      failures,
-      summary: summaryResult.status === 'fulfilled' ? summaryResult.value.data : undefined,
-      recommendations:
-        recommendationsResult.status === 'fulfilled' ? recommendationsResult.value.data : undefined,
-      lowStockItems: lowStockResult.status === 'fulfilled' ? lowStockResult.value.data : undefined,
-      expiryAlerts: expiryAlertsResult.status === 'fulfilled' ? expiryAlertsResult.value.data : undefined,
-      myItems: myItemsResult.status === 'fulfilled' ? myItemsResult.value.data : undefined,
-    }
+      return {
+        failures,
+        summary: summaryResult.status === 'fulfilled' ? summaryResult.value : undefined,
+        recommendations:
+          recommendationsResult.status === 'fulfilled' ? recommendationsResult.value : undefined,
+        lowStockItems: lowStockResult.status === 'fulfilled' ? lowStockResult.value : undefined,
+        expiryAlerts: expiryAlertsResult.status === 'fulfilled' ? expiryAlertsResult.value : undefined,
+        myItems: myItemsResult.status === 'fulfilled' ? myItemsResult.value : undefined,
+        sellerProducts:
+          sellerProductsResult.status === 'fulfilled' ? sellerProductsResult.value : undefined,
+      }
   }
 
   const applyDashboardData = (data) => {
@@ -80,6 +114,10 @@ function DashboardPage() {
 
     if (data.myItems !== undefined) {
       setMyItems(data.myItems)
+    }
+
+    if (data.sellerProducts !== undefined) {
+      setSellerProducts(data.sellerProducts)
     }
   }
 
@@ -112,6 +150,7 @@ function DashboardPage() {
 
       applyDashboardData(data)
       setDashboardErrorFromFailures(data.failures)
+      setLoading(false)
     })
 
     return () => {
@@ -135,38 +174,50 @@ function DashboardPage() {
 
     const handleDataChanged = async () => {
       const results = await Promise.allSettled([
-        api.get('/api/grocery/summary'),
-        api.get('/api/grocery/recommendations'),
-        api.get('/api/grocery/low-stock'),
-        api.get('/api/grocery/expiry-alerts'),
-        api.get('/api/grocery'),
-      ])
+        getSummary(),
+        getRecommendations(),
+          getLowStock(),
+          getExpiryAlerts(),
+          getGroceries(),
+          getSellerProducts(),
+        ])
 
       if (cancelled) {
         return
       }
 
-      const [summaryResult, recommendationsResult, lowStockResult, expiryAlertsResult, myItemsResult] = results
+      const [
+        summaryResult,
+        recommendationsResult,
+        lowStockResult,
+        expiryAlertsResult,
+        myItemsResult,
+        sellerProductsResult,
+      ] = results
       const failures = results.filter((result) => result.status === 'rejected')
 
       if (summaryResult.status === 'fulfilled') {
-        setSummary(summaryResult.value.data)
+        setSummary(summaryResult.value)
       }
 
       if (recommendationsResult.status === 'fulfilled') {
-        setRecommendations(recommendationsResult.value.data)
+        setRecommendations(recommendationsResult.value)
       }
 
       if (lowStockResult.status === 'fulfilled') {
-        setLowStockItems(lowStockResult.value.data)
+        setLowStockItems(lowStockResult.value)
       }
 
       if (expiryAlertsResult.status === 'fulfilled') {
-        setExpiryAlerts(expiryAlertsResult.value.data)
+        setExpiryAlerts(expiryAlertsResult.value)
       }
 
       if (myItemsResult.status === 'fulfilled') {
-        setMyItems(myItemsResult.value.data)
+        setMyItems(myItemsResult.value)
+      }
+
+      if (sellerProductsResult.status === 'fulfilled') {
+        setSellerProducts(sellerProductsResult.value)
       }
 
       if (failures.length === 0) {
@@ -213,6 +264,13 @@ function DashboardPage() {
     })
     .slice(0, 5)
   const pendingItems = myItems.filter((item) => !item.purchased).slice(0, 5)
+  const dashboardSmartInsights = buildDashboardSmartInsights({
+    recommendations,
+    lowStockItems,
+    expiryAlerts,
+    sellerProducts,
+    myItems,
+  })
 
   const refreshDashboard = async () => {
     const data = await fetchDashboardData()
@@ -225,11 +283,13 @@ function DashboardPage() {
     setError('')
 
     try {
-      await api.post(`/api/grocery/${itemId}/acknowledge-expiry-alert`)
+      await acknowledgeExpiryAlert(itemId)
       await refreshDashboard()
       window.dispatchEvent(new Event('grocery-data-changed'))
+      toast.success('Expiry reminder deleted.')
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Could not delete this kitchen reminder.'))
+      toast.error('Could not delete this reminder.')
     } finally {
       setAcknowledgingItemId('')
     }
@@ -287,22 +347,66 @@ function DashboardPage() {
                 </p>
               )}
 
-              {lowStockItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold">{item.name}</p>
-                      <p className="text-sm text-slate-300">{item.category}</p>
+              {lowStockItems.map((item) => {
+                const matches = findSellerMatches(item)
+
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4"
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-lg font-semibold">{item.name}</p>
+                        <p className="text-sm text-slate-300">{item.category}</p>
+                      </div>
+                      <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">
+                        Qty {item.quantity}
+                      </div>
                     </div>
-                    <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">
-                      Qty {item.quantity}
+
+                    <div className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-300/10 px-4 py-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-emerald-200">
+                            Seller match suggestions
+                          </p>
+                          <p className="mt-1 text-xs text-slate-300">
+                            Smart matching found live seller products for this low-stock item.
+                          </p>
+                        </div>
+                        <Link
+                          to="/home"
+                          className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
+                        >
+                          Open Marketplace
+                        </Link>
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        {matches.length === 0 && (
+                          <p className="text-sm text-slate-300">
+                            No matching seller product is available right now.
+                          </p>
+                        )}
+
+                        {matches.map((product) => (
+                          <div
+                            key={`${item.id}-${product.id}`}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm"
+                          >
+                            <span className="font-semibold text-white">{product.name}</span>
+                            <span className="text-slate-300">
+                              Rs {product.price} | {product.stock} stock
+                              {product.expiryDate ? ` | Expires ${formatExpiryDate(product.expiryDate)}` : ''}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </article>
         </section>
@@ -376,14 +480,15 @@ function DashboardPage() {
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-slate-700">{alert.message}</p>
-                  <button
+                  <Button
                     type="button"
                     onClick={() => handleAcknowledgeAlert(alert.itemId)}
                     disabled={acknowledgingItemId === alert.itemId}
-                    className="mt-4 rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-900 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    variant="secondary"
+                    className="mt-4 border-amber-300 text-amber-900 hover:bg-amber-100"
                   >
                     {acknowledgingItemId === alert.itemId ? 'Deleting...' : 'Delete Reminder'}
-                  </button>
+                  </Button>
                 </article>
               ))}
             </div>
@@ -493,27 +598,52 @@ function DashboardPage() {
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {summaryCards.map((card) => (
-          <article
-            key={card.key}
-            className="overflow-hidden rounded-[28px] border border-white/60 bg-white/80 p-5 shadow-[0_15px_50px_rgba(15,23,42,0.08)]"
-          >
-            <div className={`h-2 w-24 rounded-full bg-gradient-to-r ${card.accent}`} />
-            <div className="mt-5 flex items-center gap-2">
-              <card.icon size={16} className="text-slate-400" />
-              <p className="text-sm font-medium text-slate-500">{card.label}</p>
-            </div>
-            <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-              {summary ? summary[card.key] : '--'}
-            </p>
-          </article>
-        ))}
+        {loading
+          ? Array.from({ length: 4 }).map((_, index) => <SkeletonCard key={index} lines={2} className="bg-white/80" />)
+          : summaryCards.map((card) => (
+              <article
+                key={card.key}
+                className="overflow-hidden rounded-[28px] border border-white/60 bg-white/80 p-5 shadow-[0_15px_50px_rgba(15,23,42,0.08)]"
+              >
+                <div className={`h-2 w-24 rounded-full bg-gradient-to-r ${card.accent}`} />
+                <div className="mt-5 flex items-center gap-2">
+                  <card.icon size={16} className="text-slate-400" />
+                  <p className="text-sm font-medium text-slate-500">{card.label}</p>
+                </div>
+                <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
+                  {summary ? summary[card.key] : '--'}
+                </p>
+              </article>
+            ))}
       </section>
 
       {error && (
         <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
           {error}
         </div>
+      )}
+
+      {dashboardSmartInsights.length > 0 && (
+        <section className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
+                Smart Insights
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                Next actions from inventory signals
+              </h2>
+            </div>
+            <span className="rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+              {dashboardSmartInsights.length} signals
+            </span>
+          </div>
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {dashboardSmartInsights.map((insight) => (
+              <SmartInsightCard key={insight.id} {...insight} />
+            ))}
+          </div>
+        </section>
       )}
 
       {activeSection && (

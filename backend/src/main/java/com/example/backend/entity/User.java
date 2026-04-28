@@ -3,6 +3,8 @@ package com.example.backend.entity;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.time.LocalDateTime;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -31,8 +33,15 @@ public class User {
     @Column(unique = true)
     private String googleId;
 
+    @JsonIgnore
+    @Column(unique = true)
+    private String passwordResetToken;
+
+    @JsonIgnore
+    private LocalDateTime passwordResetTokenExpiresAt;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 30, columnDefinition = "varchar(30)")
     private UserRole role = UserRole.USER;
 
     public User(long id, String username, String email, String password, UserRole role) {

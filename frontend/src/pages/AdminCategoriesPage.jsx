@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import api, { getApiErrorMessage } from '../api/client'
+import { getApiErrorMessage } from '../api/client'
+import Button from '../components/ui/Button'
+import Card from '../components/ui/Card'
+import Input from '../components/ui/Input'
+import { getAdminCategories, renameAdminCategory } from '../services/adminService'
 
 function AdminCategoriesPage() {
   const [categories, setCategories] = useState([])
@@ -8,7 +12,7 @@ function AdminCategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const { data } = await api.get('/api/admin/categories')
+      const data = await getAdminCategories()
       setCategories(data)
       setDrafts(Object.fromEntries(data.map((category) => [category.name, category.name])))
     } catch (requestError) {
@@ -19,8 +23,8 @@ function AdminCategoriesPage() {
   useEffect(() => {
     let cancelled = false
 
-    api.get('/api/admin/categories')
-      .then(({ data }) => {
+    getAdminCategories()
+      .then((data) => {
         if (cancelled) {
           return
         }
@@ -43,10 +47,7 @@ function AdminCategoriesPage() {
     setError('')
 
     try {
-      await api.put('/api/admin/categories/rename', {
-        currentName,
-        nextName: drafts[currentName],
-      })
+      await renameAdminCategory(currentName, drafts[currentName])
       await loadCategories()
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to rename category.'))
@@ -55,10 +56,7 @@ function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-4xl border border-white/70 bg-white/80 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
-        <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-700">Manage Categories</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Rename and review categories</h2>
-      </section>
+      <Card eyebrow="Manage Categories" title="Rename and review categories" />
 
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
@@ -74,20 +72,20 @@ function AdminCategoriesPage() {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
-                <input
+                <Input
                   value={drafts[category.name] || ''}
                   onChange={(event) =>
                     setDrafts((current) => ({ ...current, [category.name]: event.target.value }))
                   }
-                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none transition focus:border-sky-500"
+                  inputClassName="py-2"
                 />
-                <button
+                <Button
                   type="button"
                   onClick={() => handleRename(category.name)}
-                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  variant="secondary"
                 >
                   Rename
-                </button>
+                </Button>
               </div>
             </div>
           </article>
