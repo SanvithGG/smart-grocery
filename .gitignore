@@ -1,5 +1,12 @@
 .vscode/
 
+# Local AI/Codex workspace files
+.codex/
+.codex-*/
+codex/
+codex-*.log
+AGENTS.md
+
 # Node / npm
 node_modules/
 npm-debug.log*
@@ -7,11 +14,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 frontend/.env
+*.env.local
 
 # Java / Maven
 **/target/
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+# Generated report/document artifacts
+docx_render*/
+docs/*.docx
+*.docx
+~$*
+tools/
 
 # OS files
 .DS_Store
