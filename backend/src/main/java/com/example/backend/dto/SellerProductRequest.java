@@ -23,4 +23,7 @@ public class SellerProductRequest {
     private LocalDate expiryDate;
 
     private boolean active = true;
+
+    private String imageUrl;
 }
+

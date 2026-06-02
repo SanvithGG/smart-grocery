@@ -9,6 +9,8 @@ import { sellerNavigationItems } from '../../data/sellerNavigation'
 import RoleDashboardLayout from '../../layouts/RoleDashboardLayout'
 import { getCategorySuggestions, getPriceSuggestion } from '../../utils/smartSuggestions'
 import { getNaturalExpiryDate } from '../../utils/expiry'
+import { getFallbackImage } from '../../utils/imageFallback'
+
 import {
   createSellerProduct,
   deleteSellerProduct,
@@ -16,12 +18,15 @@ import {
   updateSellerProduct,
 } from '../../services/sellerService'
 
+const t = (text) => text
+
 const emptyForm = {
   name: '',
   category: '',
   price: '',
   stock: '',
   expiryDate: '',
+  imageUrl: '',
   active: true,
 }
 
@@ -87,6 +92,7 @@ function SellerProductsPage() {
       price: String(product.price || getPriceSuggestion(product.name, product.category)),
       stock: String(product.stock),
       expiryDate: product.expiryDate || getNaturalExpiryDate(product.name, product.category) || '',
+      imageUrl: product.imageUrl || '',
       active: product.active,
     })
   }
@@ -172,77 +178,88 @@ function SellerProductsPage() {
         )}
 
         <Card>
-          <form className="grid gap-4 xl:grid-cols-[1fr_1fr_0.75fr_0.75fr_0.9fr_auto]" onSubmit={handleSubmit}>
-            <Input name="name" value={form.name} onChange={handleChange} placeholder="Product name" required />
-            <div>
-              <Input as="select" name="category" value={form.category} onChange={handleChange} required>
-                <option value="">Select category</option>
-                {categorySuggestions.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </Input>
-              {form.name && topCategorySuggestion && (
-                <p className="mt-2 animate-[fadeSlideIn_0.2s_ease-out] text-xs font-medium text-sky-700">
-                  Smart suggestion: {topCategorySuggestion}
-                </p>
-              )}
-            </div>
-            <div>
-              <Input name="price" type="number" min="0" value={form.price} onChange={handleChange} placeholder="Price" required />
-              {aiPriceSuggestion && (
-                <div className="mt-2 flex animate-[fadeSlideIn_0.2s_ease-out] flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-emerald-700">
-                    Smart price: Rs {aiPriceSuggestion}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[1fr_1fr_0.75fr_0.75fr_0.9fr_auto]">
+              <Input name="name" value={form.name} onChange={handleChange} placeholder="Product name" required />
+              <div>
+                <Input as="select" name="category" value={form.category} onChange={handleChange} required>
+                  <option value="">{t('Select category')}</option>
+                  {categorySuggestions.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </Input>
+                {form.name && topCategorySuggestion && (
+                  <p className="mt-2 animate-[fadeSlideIn_0.2s_ease-out] text-xs font-medium text-sky-700">
+                    {t('Smart suggestion:')} {topCategorySuggestion}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setForm((current) => ({ ...current, price: aiPriceSuggestion }))}
-                    className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-100"
-                  >
-                    Use smart price
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
+              <div>
+                <Input name="price" type="number" min="0" value={form.price} onChange={handleChange} placeholder="Price" required />
+                {aiPriceSuggestion && (
+                  <div className="mt-2 flex animate-[fadeSlideIn_0.2s_ease-out] flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-emerald-700">
+                      {t('Smart price: Rs')} {aiPriceSuggestion}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, price: aiPriceSuggestion }))}
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-100"
+                    >
+                      {t('Use smart price')}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <Input name="stock" type="number" min="0" value={form.stock} onChange={handleChange} placeholder="Stock" required />
+              <div>
+                <Input
+                  name="expiryDate"
+                  type="date"
+                  value={form.expiryDate}
+                  onChange={handleChange}
+                  required
+                />
+                {aiExpirySuggestion && (
+                  <div className="mt-2 flex animate-[fadeSlideIn_0.2s_ease-out] flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-emerald-700">
+                      {t('Smart expiry:')} {aiExpirySuggestion}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, expiryDate: aiExpirySuggestion }))}
+                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-100"
+                    >
+                      {t('Use smart date')}
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <input name="active" type="checkbox" checked={form.active} onChange={handleChange} />
+                  Active
+                </label>
+                <Button type="submit" variant="primary" disabled={saving}>
+                  {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
+                </Button>
+              </div>
             </div>
-            <Input name="stock" type="number" min="0" value={form.stock} onChange={handleChange} placeholder="Stock" required />
-            <div>
+
+            <div className="border-t border-slate-100 pt-3">
               <Input
-                name="expiryDate"
-                type="date"
-                value={form.expiryDate}
+                name="imageUrl"
+                value={form.imageUrl || ''}
                 onChange={handleChange}
-                required
+                placeholder="Optional Product Image URL (transparent background PNG blends best)"
               />
-              {aiExpirySuggestion && (
-                <div className="mt-2 flex animate-[fadeSlideIn_0.2s_ease-out] flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-emerald-700">
-                    Smart expiry: {aiExpirySuggestion}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setForm((current) => ({ ...current, expiryDate: aiExpirySuggestion }))}
-                    className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-100"
-                  >
-                    Use smart date
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                <input name="active" type="checkbox" checked={form.active} onChange={handleChange} />
-                Active
-              </label>
-              <Button type="submit" variant="primary" disabled={saving}>
-                {saving ? 'Saving...' : editingId ? 'Update' : 'Add'}
-              </Button>
             </div>
           </form>
           {editingId && (
             <Button type="button" onClick={resetForm} variant="ghost" className="mt-3">
-              Cancel edit
+              {t('Cancel edit')}
             </Button>
           )}
         </Card>
@@ -250,36 +267,48 @@ function SellerProductsPage() {
         <div className="grid gap-4">
           {products.length === 0 && (
             <div className="rounded-3xl border border-dashed border-slate-200 bg-white px-5 py-8 text-sm text-slate-500 shadow-[0_18px_50px_rgba(15,23,42,0.07)]">
-              No seller products yet. Add your first product above.
+              {t('No seller products yet. Add your first product above.')}
             </div>
           )}
 
           {products.map((product) => (
             <article key={product.id} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.07)] transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-[0_24px_65px_rgba(15,23,42,0.11)]">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <h3 className="text-lg font-semibold text-slate-950">{product.name}</h3>
-                    <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                      {product.category}
-                    </span>
-                    <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
-                      product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {product.active ? 'Active' : 'Inactive'}
-                    </span>
+                <div className="flex items-center gap-4">
+                  <img
+                    src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                    alt={product.name}
+                    className="h-16 w-16 rounded-2xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                    style={{ mixBlendMode: 'multiply' }}
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = getFallbackImage(product.name, product.category)
+                    }}
+                  />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-lg font-semibold text-slate-950">{product.name}</h3>
+                      <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                        {product.category}
+                      </span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
+                        product.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {product.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {t('Price: Rs')} {product.price} | {t('Stock:')} {product.stock} | {t('Expires:')} {product.expiryDate || t('Not set')}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-slate-500">
-                    Price: Rs {product.price} | Stock: {product.stock} | Expires: {product.expiryDate || 'Not set'}
-                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
                   <Button type="button" onClick={() => handleEdit(product)} variant="secondary">
-                    Edit
+                    {t('Edit')}
                   </Button>
                   <Button type="button" onClick={() => setConfirmDeleteProduct(product)} variant="danger">
-                    Delete
+                    {t('Delete')}
                   </Button>
                 </div>
               </div>

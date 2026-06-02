@@ -17,4 +17,5 @@ public class SellerProductResponse {
     private LocalDate expiryDate;
     private boolean active;
     private LocalDateTime updatedAt;
+    private String imageUrl;
 }

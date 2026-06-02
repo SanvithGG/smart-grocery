@@ -33,6 +33,8 @@ const authPageStyle = {
     'radial-gradient(circle at top left, rgba(20,184,166,0.18), transparent 32%), linear-gradient(135deg, #f8fafc 0%, #ecfeff 42%, #fefce8 100%)',
 }
 
+const t = (text) => text
+
 function getPostLoginPath(role) {
   const normalizedRole = normalizeRole(role)
 
@@ -109,7 +111,7 @@ function AuthPage({ mode }) {
         callback: handleGoogleCredential,
       })
 
-      googleButtonRef.current.innerHTML = ''
+      googleButtonRef.current.replaceChildren()
       window.google.accounts.id.renderButton(googleButtonRef.current, {
         theme: 'outline',
         size: 'large',
@@ -321,7 +323,7 @@ function AuthPage({ mode }) {
               <div className="mb-4 flex items-center gap-3">
                 <span className="h-px flex-1 bg-slate-200" />
                 <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                  Or
+                  {t('Or')}
                 </span>
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
@@ -335,7 +337,7 @@ function AuthPage({ mode }) {
                 />
               ) : (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Add VITE_GOOGLE_CLIENT_ID in frontend/.env to enable Google login.
+                  {t('Add VITE_GOOGLE_CLIENT_ID in frontend/.env to enable Google login.')}
                 </div>
               )}
             </div>
@@ -359,7 +361,7 @@ function AuthPage({ mode }) {
                 onClick={handleModeSwitch}
                 className="font-semibold text-slate-600 hover:text-emerald-700"
               >
-                Forgot password?
+                {t('Forgot password?')}
               </Link>
             )}
           </div>

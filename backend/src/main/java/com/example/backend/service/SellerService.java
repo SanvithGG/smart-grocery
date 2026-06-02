@@ -190,6 +190,7 @@ public class SellerService {
         product.setExpiryDate(request.getExpiryDate());
         product.setActive(request.isActive());
         product.setUpdatedAt(LocalDateTime.now());
+        product.setImageUrl(request.getImageUrl());
     }
 
     private long countOrdersByStatus(List<SellerOrder> orders, SellerOrderStatus status) {
@@ -218,7 +219,8 @@ public class SellerService {
                 product.getStock(),
                 product.getExpiryDate(),
                 product.isActive(),
-                product.getUpdatedAt()
+                product.getUpdatedAt(),
+                product.getImageUrl()
         );
     }
 

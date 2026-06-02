@@ -38,9 +38,12 @@ public class GroceryItem {
 
     private LocalDateTime lastPurchasedAt;
 
+    private String imageUrl;
+
     // 🔗 Link to User
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 }
+

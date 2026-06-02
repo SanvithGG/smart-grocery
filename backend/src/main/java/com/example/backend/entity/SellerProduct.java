@@ -34,6 +34,8 @@ public class SellerProduct {
 
     private LocalDateTime updatedAt = LocalDateTime.now();
 
+    private String imageUrl;
+
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "seller_id", nullable = false)

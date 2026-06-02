@@ -12,6 +12,9 @@ import {
   updateAdminCatalogStock,
   updateAdminProduct,
 } from '../services/adminService'
+import { getFallbackImage } from '../utils/imageFallback'
+
+const t = (text) => text
 
 function AdminProductsPage({ workspace = 'admin' }) {
   const toast = useToast()
@@ -188,11 +191,11 @@ function AdminProductsPage({ workspace = 'admin' }) {
       <Card className="border-white/70 bg-white/85 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)]">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">Catalog Stock</p>
-            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Restock and set quantity</h3>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">{t('Catalog Stock')}</p>
+            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{t('Restock and set quantity')}</h3>
           </div>
           <p className="text-sm text-slate-500">
-            Two items start out of stock. Set quantity above `0` to restock them.
+            {t('Two items start out of stock. Set quantity above `0` to restock them.')}
           </p>
         </div>
 
@@ -203,23 +206,37 @@ function AdminProductsPage({ workspace = 'admin' }) {
 
             return (
               <article key={stockKey} className="rounded-3xl border border-slate-200 bg-slate-50/90 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-lg font-semibold text-slate-950">{item.name}</h4>
-                    <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">{item.category}</p>
+                <div className="flex items-center gap-4">
+                  <img
+                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    alt={item.name}
+                    className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                    style={{ mixBlendMode: 'multiply' }}
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = getFallbackImage(item.name, item.category)
+                    }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-lg font-semibold text-slate-950">{item.name}</h4>
+                        <p className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">{item.category}</p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
+                        item.availability === 'OUT_OF_STOCK'
+                          ? 'bg-rose-50 text-rose-700'
+                          : item.availability === 'LOW_STOCK'
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                      }`}>
+                        {item.availability.replaceAll('_', ' ')}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${
-                    item.availability === 'OUT_OF_STOCK'
-                      ? 'bg-rose-50 text-rose-700'
-                      : item.availability === 'LOW_STOCK'
-                        ? 'bg-amber-50 text-amber-700'
-                        : 'bg-emerald-50 text-emerald-700'
-                  }`}>
-                    {item.availability.replaceAll('_', ' ')}
-                  </span>
                 </div>
 
-                <p className="mt-4 text-sm text-slate-500">Current store quantity</p>
+                <p className="mt-4 text-sm text-slate-500">{t('Current store quantity')}</p>
                 <div className="mt-2 flex items-center gap-3">
                   <Input
                     type="number"
@@ -248,16 +265,28 @@ function AdminProductsPage({ workspace = 'admin' }) {
         {filteredProducts.map((product) => (
           <article key={product.id} className="rounded-3xl border border-white/70 bg-white/85 p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h3 className="text-lg font-semibold text-slate-950">{product.name}</h3>
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
-                    {product.category}
-                  </span>
+              <div className="flex items-center gap-4">
+                <img
+                  src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                  alt={product.name}
+                  className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                  style={{ mixBlendMode: 'multiply' }}
+                  onError={(e) => {
+                    e.target.onerror = null
+                    e.target.src = getFallbackImage(product.name, product.category)
+                  }}
+                />
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-lg font-semibold text-slate-950">{product.name}</h3>
+                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-600">
+                      {product.category}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {t('User:')} {product.username} | {t('Quantity:')} {product.quantity} | {t('Status:')} {product.purchased ? t('Purchased') : t('Pending')}
+                  </p>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">
-                  User: {product.username} | Quantity: {product.quantity} | Status: {product.purchased ? 'Purchased' : 'Pending'}
-                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -282,7 +311,7 @@ function AdminProductsPage({ workspace = 'admin' }) {
                   onClick={() => setConfirmDeleteProduct(product)}
                   variant="danger"
                 >
-                  Delete
+                  {t('Delete')}
                 </Button>
               </div>
             </div>

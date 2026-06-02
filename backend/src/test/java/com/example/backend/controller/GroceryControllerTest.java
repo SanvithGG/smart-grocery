@@ -84,7 +84,7 @@ class GroceryControllerTest {
     @Test
     void getShoppingListDelegatesToService() {
         List<ShoppingItemDTO> expected = List.of(
-                new ShoppingItemDTO(2L, "Eggs", "Dairy", List.of("EXPIRING"), "HIGH", 1, true, LocalDate.now().plusDays(1))
+                new ShoppingItemDTO(2L, "Eggs", "Dairy", List.of("EXPIRING"), "HIGH", 1, true, LocalDate.now().plusDays(1), null)
         );
         when(principal.getName()).thenReturn("sanvi");
         when(groceryService.getSmartShoppingList("sanvi")).thenReturn(expected);
@@ -185,6 +185,6 @@ class GroceryControllerTest {
     }
 
     private GroceryItem item(Long id, String name, String category, int quantity, boolean purchased) {
-        return new GroceryItem(id, name, category, quantity, purchased, null, LocalDateTime.now(), null);
+        return new GroceryItem(id, name, category, quantity, purchased, null, LocalDateTime.now(), null, null);
     }
 }

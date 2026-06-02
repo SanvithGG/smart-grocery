@@ -17,6 +17,7 @@ import {
 } from '../services/groceryService'
 import { getNaturalExpiryDate } from '../utils/expiry'
 import { buildHomeSmartBuySuggestions } from '../utils/smartSuggestions'
+import { getFallbackImage } from '../utils/imageFallback'
 
 const AVAILABILITY_THRESHOLD = 3
 const initialQuickAddDraft = {
@@ -73,7 +74,9 @@ const stockToneByAvailability = {
   },
 }
 
-const defaultItemPrices = {
+const t = (text) => text
+
+const defaultItemPrices = new Map(Object.entries({
   milk: 32,
   bread: 28,
   eggs: 72,
@@ -95,9 +98,9 @@ const defaultItemPrices = {
   paneer: 85,
   yogurt: 42,
   spinach: 25,
-}
+}))
 
-const defaultCategoryPrices = {
+const defaultCategoryPrices = new Map(Object.entries({
   dairy: 60,
   bakery: 35,
   fruits: 90,
@@ -107,9 +110,9 @@ const defaultCategoryPrices = {
   beverages: 110,
   snacks: 45,
   household: 95,
-}
+}))
 
-const defaultCatalogQuantities = {
+const defaultCatalogQuantities = new Map(Object.entries({
   'milk|dairy': 8,
   'bread|bakery': 0,
   'eggs|dairy': 12,
@@ -128,7 +131,7 @@ const defaultCatalogQuantities = {
   'biscuits|snacks': 16,
   'soap|household': 9,
   'detergent|household': 6,
-}
+}))
 
 const normalizeKey = (value) => (value || '').trim().toLowerCase()
 
@@ -142,9 +145,9 @@ const formatPrice = (price, currency = 'INR') =>
   }).format(price ?? 0)
 
 const resolveFallbackPrice = (item) =>
-  defaultItemPrices[normalizeKey(item.name)] ?? defaultCategoryPrices[normalizeKey(item.category)] ?? 99
+  defaultItemPrices.get(normalizeKey(item.name)) ?? defaultCategoryPrices.get(normalizeKey(item.category)) ?? 99
 
-const resolveFallbackQuantity = (item) => defaultCatalogQuantities[catalogKey(item.name, item.category)] ?? 0
+const resolveFallbackQuantity = (item) => defaultCatalogQuantities.get(catalogKey(item.name, item.category)) ?? 0
 
 const paymentMethodOptions = [
   { value: 'GPAY', label: 'Google Pay UPI' },
@@ -174,7 +177,7 @@ function HomePage() {
   const [catalogItems, setCatalogItems] = useState([])
   const [catalogCategories, setCatalogCategories] = useState([])
   const [sellerProducts, setSellerProducts] = useState([])
-  const [sellerOrderQuantities, setSellerOrderQuantities] = useState({})
+  const [sellerOrderQuantities, setSellerOrderQuantities] = useState(new Map())
   const [sellerOrderSubmittingId, setSellerOrderSubmittingId] = useState(null)
   const [sellerOrderTarget, setSellerOrderTarget] = useState(null)
   const [sellerPaymentDraft, setSellerPaymentDraft] = useState(initialSellerPaymentDraft)
@@ -351,20 +354,24 @@ function HomePage() {
   }
 
   const handleSellerOrderQuantityChange = (productId, value) => {
-    setSellerOrderQuantities((current) => ({
-      ...current,
-      [productId]: value,
-    }))
+    setSellerOrderQuantities((current) => {
+      const next = new Map(current)
+      next.set(productId, value)
+      return next
+    })
   }
 
   const handleOpenSellerOrder = (product) => {
     setSellerOrderTarget(product)
     setSellerPaymentDraft(initialSellerPaymentDraft)
     setSellerPaymentProcessing(false)
-    setSellerOrderQuantities((current) => ({
-      ...current,
-      [product.id]: current[product.id] ?? 1,
-    }))
+    setSellerOrderQuantities((current) => {
+      const next = new Map(current)
+      if (!next.has(product.id)) {
+        next.set(product.id, 1)
+      }
+      return next
+    })
     setError('')
   }
 
@@ -401,7 +408,7 @@ function HomePage() {
   }
 
   const handleSellerOrder = async (product) => {
-    const quantity = Math.max(Number(sellerOrderQuantities[product.id]) || 1, 1)
+    const quantity = Math.max(Number(sellerOrderQuantities.get(product.id)) || 1, 1)
 
     if (quantity > product.stock) {
       setError(`Only ${product.stock} unit(s) of ${product.name} are available.`)
@@ -425,7 +432,11 @@ function HomePage() {
       await createSellerOrder(product.id, { quantity })
       await loadHomeData()
       toast.success(`${product.name} order sent to the seller.`)
-      setSellerOrderQuantities((current) => ({ ...current, [product.id]: 1 }))
+      setSellerOrderQuantities((current) => {
+        const next = new Map(current)
+        next.set(product.id, 1)
+        return next
+      })
       setSellerOrderTarget(null)
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, `Could not order ${product.name}.`))
@@ -519,7 +530,7 @@ function HomePage() {
                   <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">Google Pay demo</p>
+                        <p className="text-sm font-semibold text-slate-900">{t('Google Pay demo')}</p>
                         <p className="mt-1 text-xs text-slate-500">
                           Demo payment only. No real money is transferred.
                         </p>
@@ -549,7 +560,7 @@ function HomePage() {
 
                 <div className="rounded-3xl border border-emerald-100 bg-emerald-50/80 p-4">
                   <div className="flex items-center justify-between gap-3 text-sm">
-                    <span className="text-slate-600">Estimated total</span>
+                    <span className="text-slate-600">{t('Estimated total')}</span>
                     <span className="text-lg font-semibold text-slate-950">
                       {formatPrice(quickBuyTotal, quickAddTarget?.currency || 'INR')}
                     </span>
@@ -570,7 +581,7 @@ function HomePage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-slate-700">Expected Expiry</label>
+                  <label className="text-sm font-medium text-slate-700">{t('Expected Expiry')}</label>
                   <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
                     {formatNaturalExpiry(displayedQuickExpiryDate)}
                   </div>
@@ -623,7 +634,7 @@ function HomePage() {
                 type="number"
                 min="1"
                 max={sellerOrderTarget.stock}
-                value={sellerOrderQuantities[sellerOrderTarget.id] ?? 1}
+                value={sellerOrderQuantities.get(sellerOrderTarget.id) ?? 1}
                 onChange={(event) =>
                   handleSellerOrderQuantityChange(sellerOrderTarget.id, event.target.value)
                 }
@@ -662,7 +673,7 @@ function HomePage() {
                 <div className="rounded-3xl border border-sky-100 bg-sky-50/80 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">Google Pay demo</p>
+                      <p className="text-sm font-semibold text-slate-900">{t('Google Pay demo')}</p>
                       <p className="mt-1 text-xs text-slate-500">
                         Demo payment only. No real money is transferred.
                       </p>
@@ -692,20 +703,20 @@ function HomePage() {
 
               <div className="rounded-3xl border border-emerald-100 bg-emerald-50/80 p-4">
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="text-slate-600">Estimated total</span>
+                  <span className="text-slate-600">{t('Estimated total')}</span>
                   <span className="text-lg font-semibold text-slate-950">
                     {formatPrice(
                       Number(sellerOrderTarget.price) *
-                        Math.max(Number(sellerOrderQuantities[sellerOrderTarget.id]) || 1, 1),
+                        Math.max(Number(sellerOrderQuantities.get(sellerOrderTarget.id)) || 1, 1),
                     )}
                   </span>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
                   <span>
                     {formatPrice(sellerOrderTarget.price)} x{' '}
-                    {sellerOrderQuantities[sellerOrderTarget.id] ?? 1}
+                    {sellerOrderQuantities.get(sellerOrderTarget.id) ?? 1}
                   </span>
-                  <span>Seller stock: {sellerOrderTarget.stock}</span>
+                  <span>{t('Seller stock:')} {sellerOrderTarget.stock}</span>
                 </div>
                 {sellerOrderTarget.expiryDate && (
                   <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -778,15 +789,15 @@ function HomePage() {
           </p>
           <div className="mt-5 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
             <div className="rounded-3xl bg-slate-950 px-5 py-4 text-white">
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-300">Pending</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-slate-300">{t('Pending')}</p>
               <p className="mt-2 text-3xl font-semibold">{pendingItems.length}</p>
             </div>
             <div className="rounded-3xl bg-emerald-50 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-emerald-700">Purchased</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-emerald-700">{t('Purchased')}</p>
               <p className="mt-2 text-3xl font-semibold text-emerald-950">{purchasedItems.length}</p>
             </div>
             <div className="rounded-3xl bg-sky-50 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-sky-700">Available 3+</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-sky-700">{t('Available 3+')}</p>
               <p className="mt-2 text-3xl font-semibold text-sky-950">{availableItems.length}</p>
             </div>
           </div>
@@ -821,7 +832,12 @@ function HomePage() {
             {smartBuySuggestions.map((suggestion) => (
               <SmartInsightCard
                 key={suggestion.id}
-                {...suggestion}
+                title={suggestion.title}
+                message={suggestion.message}
+                meta={suggestion.meta}
+                tone={suggestion.tone}
+                actionLabel={suggestion.actionLabel}
+                className={suggestion.className}
                 onAction={() => {
                   if (suggestion.actionTarget === 'seller-market') {
                     document.getElementById('seller-market')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -869,7 +885,7 @@ function HomePage() {
               onChange={handleCatalogFilterChange}
               className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
             >
-              <option value="">All Categories</option>
+              <option value="">{t('All Categories')}</option>
               {catalogCategories.map((category) => (
                 <option key={category} value={category}>
                   {category}
@@ -903,57 +919,68 @@ function HomePage() {
             return (
               <article
                 key={itemKey}
-                className={`rounded-3xl border px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
+                className={`overflow-hidden rounded-3xl border shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
                 style={catalogCardStyle}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="relative h-48 w-full overflow-hidden border-b border-slate-100/50 bg-slate-50/50">
+                  <img
+                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    alt={item.name}
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = getFallbackImage(item.name, item.category)
+                    }}
+                  />
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
+                    className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
                   >
                     {item.category}
                   </span>
                   <span
-                    className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${stockTone.badge}`}
+                    className={`absolute right-3 top-3 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${stockTone.badge}`}
                   >
                     {stockTone.label}
                   </span>
                 </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{item.name}</h3>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-950">
-                      {formatPrice(displayPrice, item.currency || 'INR')}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                      Estimated price
-                    </p>
+                <div className="p-5">
+                  <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                        {formatPrice(displayPrice, item.currency || 'INR')}
+                      </p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        Estimated price
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${stockTone.quantity}`}>
+                        {quantity > 0 ? `${quantity} available` : '0 available'}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">{t('In your inventory')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${stockTone.quantity}`}>
-                      {quantity > 0 ? `${quantity} available` : '0 available'}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">In your inventory</p>
+                  <p className="mt-3 text-sm text-slate-500">
+                    {quantity > 0
+                      ? `${quantity} store units are currently available for purchase.`
+                      : 'This product is currently unavailable. It will be restocked soon.'}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>{t('UPI, card, or cash')}</span>
+                    <span>{t('Fast checkout')}</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuickAdd(item)}
+                    disabled={availability === 'OUT_OF_STOCK'}
+                    className={`mt-4 w-full rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${catalogCardClasses.button} ${
+                      availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
+                    }`}
+                  >
+                    {availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
+                  </button>
                 </div>
-                <p className="mt-3 text-sm text-slate-500">
-                  {quantity > 0
-                    ? `${quantity} store units are currently available for purchase.`
-                    : 'This product is currently unavailable. It will be restocked soon.'}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
-                  <span>UPI, card, or cash</span>
-                  <span>Fast checkout</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenQuickAdd(item)}
-                  disabled={availability === 'OUT_OF_STOCK'}
-                  className={`mt-4 w-full rounded-2xl border px-4 py-2 text-sm font-semibold transition ${catalogCardClasses.button} ${
-                    availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
-                  }`}
-                >
-                  {availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
-                </button>
               </article>
             )
           })}
@@ -995,68 +1022,79 @@ function HomePage() {
             return (
               <article
                 key={product.id}
-                className={`rounded-3xl border px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
+                className={`overflow-hidden rounded-3xl border shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
                 style={catalogCardStyle}
               >
-                <div className="flex items-center justify-between gap-3">
+                <div className="relative h-48 w-full overflow-hidden border-b border-slate-100/50 bg-slate-50/50">
+                  <img
+                    src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                    alt={product.name}
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = getFallbackImage(product.name, product.category)
+                    }}
+                  />
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
+                    className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
                   >
                     {product.category}
                   </span>
                   <span
-                    className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${stockTone.badge}`}
+                    className={`absolute right-3 top-3 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${stockTone.badge}`}
                   >
                     {stockTone.label}
                   </span>
                 </div>
 
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{product.name}</h3>
+                <div className="p-5">
+                  <h3 className="text-lg font-semibold text-slate-900">{product.name}</h3>
 
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-950">
-                      {formatPrice(product.price)}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                      Seller price
-                    </p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                        {formatPrice(product.price)}
+                      </p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        Seller price
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm font-semibold ${stockTone.quantity}`}>
+                        {quantity > 0 ? `${quantity} available` : '0 available'}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">{t('Seller stock')}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${stockTone.quantity}`}>
-                      {quantity > 0 ? `${quantity} available` : '0 available'}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">Seller stock</p>
-                  </div>
-                </div>
 
-                <p className="mt-3 text-sm text-slate-500">
-                  {quantity > 0
-                    ? `${quantity} seller units are currently available for purchase.`
-                    : 'This seller product is currently unavailable.'}
-                </p>
-
-                {product.expiryDate && (
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                    Expires {new Date(`${product.expiryDate}T00:00:00`).toLocaleDateString()}
+                  <p className="mt-3 text-sm text-slate-500">
+                    {quantity > 0
+                      ? `${quantity} seller units are currently available for purchase.`
+                      : 'This seller product is currently unavailable.'}
                   </p>
-                )}
 
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
-                  <span>Seller order</span>
-                  <span>Pending approval</span>
+                  {product.expiryDate && (
+                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      Expires {new Date(`${product.expiryDate}T00:00:00`).toLocaleDateString()}
+                    </p>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                    <span>{t('Seller order')}</span>
+                    <span>{t('Pending approval')}</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSellerOrder(product)}
+                    disabled={isSubmitting || availability === 'OUT_OF_STOCK'}
+                    className={`mt-4 w-full rounded-2xl border px-4 py-2.5 text-sm font-semibold transition ${catalogCardClasses.button} ${
+                      isSubmitting || availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
+                    }`}
+                  >
+                    {isSubmitting ? 'Sending Order...' : availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
+                  </button>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleOpenSellerOrder(product)}
-                  disabled={isSubmitting || availability === 'OUT_OF_STOCK'}
-                  className={`mt-4 w-full rounded-2xl border px-4 py-2 text-sm font-semibold transition ${catalogCardClasses.button} ${
-                    isSubmitting || availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
-                  }`}
-                >
-                  {isSubmitting ? 'Sending Order...' : availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
-                </button>
               </article>
             )
           })}

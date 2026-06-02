@@ -5,6 +5,9 @@ import Card from '../components/ui/Card'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { useToast } from '../components/ui/toast'
 import { getShoppingList, updateGrocery } from '../services/groceryService'
+import { getFallbackImage } from '../utils/imageFallback'
+
+const t = (text) => text
 
 const DISMISSED_ITEMS_STORAGE_KEY = 'smart-grocery-shopping-list-dismissed'
 const LOW_STOCK_THRESHOLD = 2
@@ -132,14 +135,13 @@ function ShoppingListPage() {
         style={shoppingHeroStyle}
       >
         <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
-          Buy Queue
+          {t('Buy Queue')}
         </p>
         <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950">
-          Auto-built from low stock and near-expiry items.
+          {t('Auto-built from low stock and near-expiry items.')}
         </h2>
         <p className="mt-4 max-w-2xl text-sm text-slate-600 sm:text-base">
-          Items show here when quantity is low or expiry is within the next 2 days. Mark them as
-          bought to update inventory immediately, or dismiss items from this view.
+          {t('Items show here when quantity is low or expiry is within the next 2 days. Mark them as bought to update inventory immediately, or dismiss items from this view.')}
         </p>
       </Card>
 
@@ -153,7 +155,7 @@ function ShoppingListPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Buy Suggestions
+                {t('Buy Suggestions')}
               </p>
             <p className="mt-2 text-sm text-slate-500">
               {visibleItems.length} active suggestions
@@ -166,7 +168,7 @@ function ShoppingListPage() {
               onClick={handleRestoreDismissed}
               variant="secondary"
             >
-              Restore dismissed ({dismissedItemIds.length})
+              {t('Restore dismissed')} ({dismissedItemIds.length})
             </Button>
           )}
         </div>
@@ -176,7 +178,7 @@ function ShoppingListPage() {
 
           {!loading && visibleItems.length === 0 && (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              You're all set. No items need restocking.
+              {t("You're all set. No items need restocking.")}
             </p>
           )}
 
@@ -194,52 +196,66 @@ function ShoppingListPage() {
                       : 'border-slate-100 bg-slate-50'
                   }`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">
-                        {item.category} | Qty {item.quantity}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold tracking-[0.2em] ${getPriorityBadgeClasses(item.priority)}`}>
-                        {item.priority}
-                      </span>
-                      {isLowStock && (
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-slate-700">
-                          LOW STOCK
-                        </span>
-                      )}
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      alt={item.name}
+                      className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                      style={{ mixBlendMode: 'multiply' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = getFallbackImage(item.name, item.category)
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{item.name}</p>
+                          <p className="text-sm text-slate-500">
+                            {item.category} | Qty {item.quantity}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold tracking-[0.2em] ${getPriorityBadgeClasses(item.priority)}`}>
+                            {item.priority}
+                          </span>
+                          {isLowStock && (
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-slate-700">
+                            {t('LOW STOCK')}
+                            </span>
+                          )}
+                          {isExpiring && (
+                            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-sky-800">
+                            {t('EXPIRING')}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
                       {isExpiring && (
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-sky-800">
-                          EXPIRING
-                        </span>
+                        <p className="mt-2 text-sm text-slate-700">
+                          {t('Current expiry:')} {formatDateLabel(item.expiryDate)}
+                        </p>
                       )}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <Button
+                          type="button"
+                          onClick={() => handleMarkPurchased(item)}
+                          disabled={updatingItemId === item.itemId}
+                          variant="success"
+                        >
+                          {updatingItemId === item.itemId ? 'Updating...' : 'Bought'}
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => handleDismissItem(item.itemId)}
+                          variant="secondary"
+                        >
+                          {t('Dismiss')}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-
-                  {isExpiring && (
-                    <p className="mt-2 text-sm text-slate-700">
-                      Current expiry: {formatDateLabel(item.expiryDate)}
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      onClick={() => handleMarkPurchased(item)}
-                      disabled={updatingItemId === item.itemId}
-                      variant="success"
-                    >
-                      {updatingItemId === item.itemId ? 'Updating...' : 'Bought'}
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleDismissItem(item.itemId)}
-                      variant="secondary"
-                    >
-                      Dismiss
-                    </Button>
                   </div>
                 </article>
               )

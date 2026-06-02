@@ -17,4 +17,5 @@ public class ShoppingItemDTO {
     private Integer quantity;
     private boolean purchased;
     private LocalDate expiryDate;
+    private String imageUrl;
 }

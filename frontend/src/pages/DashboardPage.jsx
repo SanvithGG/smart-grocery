@@ -16,6 +16,18 @@ import {
   getSummary,
 } from '../services/groceryService'
 import { buildDashboardSmartInsights, findSellerMatchesForItem } from '../utils/smartSuggestions'
+import { getFallbackImage } from '../utils/imageFallback'
+
+const t = (text) => text
+
+const getSummaryValue = (summary, key) => {
+  if (!summary) return '--'
+  if (key === 'pendingItems') return summary.pendingItems
+  if (key === 'lowStockItems') return summary.lowStockItems
+  if (key === 'purchasedItems') return summary.purchasedItems
+  if (key === 'totalItems') return summary.totalItems
+  return '--'
+}
 
 const summaryCards = [
   { key: 'totalItems', label: 'Total Items', accent: 'from-sky-500 to-cyan-400', icon: Package },
@@ -309,7 +321,7 @@ function DashboardPage() {
             <div className="mt-6 space-y-4">
               {recommendations.length === 0 && (
                 <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  No recommendations yet. Add and update groceries to generate insights.
+                  {t('No recommendations yet. Add and update groceries to generate insights.')}
                 </p>
               )}
 
@@ -318,16 +330,30 @@ function DashboardPage() {
                   key={`${item.itemName}-${item.category}`}
                   className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">{item.itemName}</p>
-                      <p className="text-sm text-slate-500">{item.category}</p>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={getFallbackImage(item.itemName, item.category)}
+                      alt={item.itemName}
+                      className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                      style={{ mixBlendMode: 'multiply' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = getFallbackImage(item.itemName, item.category)
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{item.itemName}</p>
+                          <p className="text-sm text-slate-500">{item.category}</p>
+                        </div>
+                        <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold tracking-[0.2em] text-white">
+                          {item.priority}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600">{item.reason}</p>
                     </div>
-                    <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold tracking-[0.2em] text-white">
-                      {item.priority}
-                    </span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-600">{item.reason}</p>
                 </div>
               ))}
             </div>
@@ -343,7 +369,7 @@ function DashboardPage() {
             <div className="mt-6 space-y-4">
               {lowStockItems.length === 0 && (
                 <p className="rounded-3xl border border-white/10 bg-white/5 px-4 py-6 text-sm text-slate-300">
-                  No urgent restock items right now.
+                  {t('No urgent restock items right now.')}
                 </p>
               )}
 
@@ -355,13 +381,27 @@ function DashboardPage() {
                     key={item.id}
                     className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4"
                   >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-lg font-semibold">{item.name}</p>
-                        <p className="text-sm text-slate-300">{item.category}</p>
-                      </div>
-                      <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">
-                        Qty {item.quantity}
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                        alt={item.name}
+                        className="h-12 w-12 rounded-xl object-cover bg-white/10 border border-white/10 shadow-sm"
+                        style={{ mixBlendMode: 'multiply' }}
+                        onError={(e) => {
+                          e.target.onerror = null
+                          e.target.src = getFallbackImage(item.name, item.category)
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <p className="text-lg font-semibold">{item.name}</p>
+                            <p className="text-sm text-slate-300">{item.category}</p>
+                          </div>
+                          <div className="rounded-full border border-amber-300/40 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">
+                            {t('Qty')} {item.quantity}
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -369,24 +409,24 @@ function DashboardPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-emerald-200">
-                            Seller match suggestions
+                            {t('Seller match suggestions')}
                           </p>
                           <p className="mt-1 text-xs text-slate-300">
-                            Smart matching found live seller products for this low-stock item.
+                            {t('Smart matching found live seller products for this low-stock item.')}
                           </p>
                         </div>
                         <Link
                           to="/home"
                           className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
                         >
-                          Open Marketplace
+                          {t('Open Marketplace')}
                         </Link>
                       </div>
 
                       <div className="mt-3 grid gap-2">
                         {matches.length === 0 && (
                           <p className="text-sm text-slate-300">
-                            No matching seller product is available right now.
+                            {t('No matching seller product is available right now.')}
                           </p>
                         )}
 
@@ -397,8 +437,8 @@ function DashboardPage() {
                           >
                             <span className="font-semibold text-white">{product.name}</span>
                             <span className="text-slate-300">
-                              Rs {product.price} | {product.stock} stock
-                              {product.expiryDate ? ` | Expires ${formatExpiryDate(product.expiryDate)}` : ''}
+                              {t('Rs')} {product.price} | {product.stock} {t('stock')}
+                              {product.expiryDate ? ` | ${t('Expires')} ${formatExpiryDate(product.expiryDate)}` : ''}
                             </span>
                           </div>
                         ))}
@@ -420,7 +460,7 @@ function DashboardPage() {
             <div className="mt-6 space-y-4">
               {pendingItems.length === 0 && (
                 <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  No pending items. Your list is fully handled.
+                  {t('No pending items. Your list is fully handled.')}
                 </p>
               )}
 
@@ -429,13 +469,27 @@ function DashboardPage() {
                   key={item.id}
                   className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">{item.name}</p>
-                      <p className="text-sm text-slate-500">{item.category}</p>
-                    </div>
-                    <div className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">
-                      Qty {item.quantity}
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      alt={item.name}
+                      className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                      style={{ mixBlendMode: 'multiply' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = getFallbackImage(item.name, item.category)
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{item.name}</p>
+                          <p className="text-sm text-slate-500">{item.category}</p>
+                        </div>
+                        <div className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">
+                          {t('Qty')} {item.quantity}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -459,7 +513,7 @@ function DashboardPage() {
             <div className="mt-6 grid gap-4">
               {expiryAlerts.length === 0 && (
                 <p className="rounded-3xl border border-dashed border-amber-200 bg-amber-50 px-4 py-6 text-sm text-amber-800">
-                  No expiry reminders right now.
+                  {t('No expiry reminders right now.')}
                 </p>
               )}
 
@@ -468,27 +522,41 @@ function DashboardPage() {
                   key={alert.itemId}
                   className="rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-semibold text-slate-900">{alert.itemName}</p>
-                      <p className="text-sm text-slate-500">
-                        {alert.category} | Expires {formatExpiryDate(alert.expiryDate)}
-                      </p>
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={getFallbackImage(alert.itemName, alert.category)}
+                      alt={alert.itemName}
+                      className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-amber-200/50 shadow-sm"
+                      style={{ mixBlendMode: 'multiply' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = getFallbackImage(alert.itemName, alert.category)
+                      }}
+                    />
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-lg font-semibold text-slate-900">{alert.itemName}</p>
+                          <p className="text-sm text-slate-500">
+                            {alert.category} | Expires {formatExpiryDate(alert.expiryDate)}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-amber-800">
+                          {alert.severity}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-700">{alert.message}</p>
+                      <Button
+                        type="button"
+                        onClick={() => handleAcknowledgeAlert(alert.itemId)}
+                        disabled={acknowledgingItemId === alert.itemId}
+                        variant="secondary"
+                        className="mt-4 border-amber-300 text-amber-900 hover:bg-amber-100"
+                      >
+                        {acknowledgingItemId === alert.itemId ? 'Deleting...' : 'Delete Reminder'}
+                      </Button>
                     </div>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold tracking-[0.2em] text-amber-800">
-                      {alert.severity}
-                    </span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-700">{alert.message}</p>
-                  <Button
-                    type="button"
-                    onClick={() => handleAcknowledgeAlert(alert.itemId)}
-                    disabled={acknowledgingItemId === alert.itemId}
-                    variant="secondary"
-                    className="mt-4 border-amber-300 text-amber-900 hover:bg-amber-100"
-                  >
-                    {acknowledgingItemId === alert.itemId ? 'Deleting...' : 'Delete Reminder'}
-                  </Button>
                 </article>
               ))}
             </div>
@@ -503,7 +571,7 @@ function DashboardPage() {
           <div className="mt-6 space-y-4">
             {recentItems.length === 0 && (
               <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                No grocery activity yet.
+                {t('No grocery activity yet.')}
               </p>
             )}
 
@@ -512,13 +580,27 @@ function DashboardPage() {
                 key={item.id}
                 className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900">{item.name}</p>
-                    <p className="text-sm text-slate-500">{item.category}</p>
-                  </div>
-                  <div className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">
-                    {item.purchased ? 'Purchased' : 'Pending'}
+                <div className="flex items-center gap-4">
+                  <img
+                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    alt={item.name}
+                    className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                    style={{ mixBlendMode: 'multiply' }}
+                    onError={(e) => {
+                      e.target.onerror = null
+                      e.target.src = getFallbackImage(item.name, item.category)
+                    }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-lg font-semibold text-slate-900">{item.name}</p>
+                        <p className="text-sm text-slate-500">{item.category}</p>
+                      </div>
+                      <div className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">
+                        {item.purchased ? 'Purchased' : 'Pending'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -546,12 +628,10 @@ function DashboardPage() {
             <LayoutDashboard size={16} /> Dashboard
           </p>
           <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight">
-            See the grocery list, stock pressure, and next actions in one place.
+            {t('See the grocery list, stock pressure, and next actions in one place.')}
           </h2>
           <p className="mt-4 max-w-xl text-sm text-slate-200 sm:text-base">
-            This view is now focused on operational data. Browse and quickly buy items from the
-            Home page, then use this screen for decisions, including reminders for kitchen items
-            that are close to expiring or expire today.
+            {t('This view is now focused on operational data. Browse and quickly buy items from the Home page, then use this screen for decisions, including reminders for kitchen items that are close to expiring or expire today.')}
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -559,36 +639,36 @@ function DashboardPage() {
               to="/inventory"
               className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
             >
-              Open Inventory
+              {t('Open Inventory')}
             </Link>
             <Link
               to="/"
               className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
-              Back to Home
+              {t('Back to Home')}
             </Link>
           </div>
         </article>
 
         <article className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-            Snapshot
+            {t('Snapshot')}
           </p>
           <div className="mt-5 space-y-4">
             <div className="rounded-3xl bg-amber-50 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-amber-700">Pending Items</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-amber-700">{t('Pending Items')}</p>
               <p className="mt-2 text-3xl font-semibold text-amber-950">
                 {summary ? summary.pendingItems : '--'}
               </p>
             </div>
             <div className="rounded-3xl bg-rose-50 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-rose-700">Low Stock</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-rose-700">{t('Low Stock')}</p>
               <p className="mt-2 text-3xl font-semibold text-rose-950">
                 {summary ? summary.lowStockItems : '--'}
               </p>
             </div>
             <div className="rounded-3xl bg-emerald-50 px-5 py-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-emerald-700">Purchased</p>
+              <p className="text-xs uppercase tracking-[0.25em] text-emerald-700">{t('Purchased')}</p>
               <p className="mt-2 text-3xl font-semibold text-emerald-950">
                 {summary ? summary.purchasedItems : '--'}
               </p>
@@ -611,7 +691,7 @@ function DashboardPage() {
                   <p className="text-sm font-medium text-slate-500">{card.label}</p>
                 </div>
                 <p className="mt-3 text-4xl font-semibold tracking-tight text-slate-950">
-                  {summary ? summary[card.key] : '--'}
+                  {getSummaryValue(summary, card.key)}
                 </p>
               </article>
             ))}
@@ -628,10 +708,10 @@ function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
-                Smart Insights
+                {t('Smart Insights')}
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                Next actions from inventory signals
+                {t('Next actions from inventory signals')}
               </h2>
             </div>
             <span className="rounded-full bg-sky-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
@@ -640,7 +720,16 @@ function DashboardPage() {
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {dashboardSmartInsights.map((insight) => (
-              <SmartInsightCard key={insight.id} {...insight} />
+              <SmartInsightCard
+                key={insight.id}
+                title={insight.title}
+                message={insight.message}
+                meta={insight.meta}
+                tone={insight.tone}
+                actionLabel={insight.actionLabel}
+                className={insight.className}
+                onAction={insight.onAction}
+              />
             ))}
           </div>
         </section>
@@ -685,7 +774,7 @@ function DashboardPage() {
                     : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                Cancel
+                {t('Cancel')}
               </button>
             </div>
 

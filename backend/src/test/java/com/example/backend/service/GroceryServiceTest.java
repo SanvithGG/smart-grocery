@@ -436,6 +436,6 @@ class GroceryServiceTest {
 
     private GroceryItem item(Long id, String name, String category, int quantity, boolean purchased,
                              LocalDate expiryDate, LocalDateTime lastPurchasedAt, User user) {
-        return new GroceryItem(id, name, category, quantity, purchased, expiryDate, lastPurchasedAt, user);
+        return new GroceryItem(id, name, category, quantity, purchased, expiryDate, lastPurchasedAt, null, user);
     }
 }

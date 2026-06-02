@@ -14,6 +14,9 @@ import {
   updateGrocery,
 } from '../services/groceryService'
 import { getNaturalExpiryDate } from '../utils/expiry'
+import { getFallbackImage } from '../utils/imageFallback'
+
+const t = (text) => text
 
 const initialForm = {
   name: '',
@@ -21,6 +24,7 @@ const initialForm = {
   quantity: 1,
   purchased: false,
   expiryDate: '',
+  imageUrl: '',
 }
 
 const suggestionClasses =
@@ -246,6 +250,7 @@ function InventoryPage() {
       quantity: current.quantity,
       name: catalogItem.name,
       category: catalogItem.category,
+      imageUrl: catalogItem.imageUrl || '',
     }))
   }
 
@@ -311,11 +316,10 @@ function InventoryPage() {
           <Plus size={14} /> Buy Item
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Build your purchase flow
+          {t('Build your purchase flow')}
         </h2>
         <p className="mt-3 max-w-lg text-sm text-slate-600">
-          Keep your kitchen inventory current so the app can surface reminders for items that are close
-          to expiring or expire today.
+          {t('Keep your kitchen inventory current so the app can surface reminders for items that are close to expiring or expire today.')}
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={handleAddItem}>
@@ -334,7 +338,7 @@ function InventoryPage() {
             onChange={handleCategorySelect}
             required
           >
-            <option value="">Select category</option>
+            <option value="">{t('Select category')}</option>
             {categories.map((category) => (
               <option key={category} value={category}>
                 {category}
@@ -349,6 +353,13 @@ function InventoryPage() {
             onChange={handleFormChange}
             placeholder="Quantity"
             required
+          />
+
+          <Input
+            name="imageUrl"
+            value={form.imageUrl || ''}
+            onChange={handleFormChange}
+            placeholder="Optional Image URL (transparent PNG blends best)"
           />
 
           <Button
@@ -382,9 +393,9 @@ function InventoryPage() {
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Daily Picks
+              {t('Daily Picks')}
             </p>
-            <p className="text-xs text-slate-400">Click to autofill item and category</p>
+            <p className="text-xs text-slate-400">{t('Click to autofill item and category')}</p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {catalogItems.slice(0, 8).map((catalogItem) => (
@@ -414,7 +425,7 @@ function InventoryPage() {
               <Package size={14} /> Inventory
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Search and filter groceries
+              {t('Search and filter groceries')}
             </h2>
           </div>
 
@@ -438,7 +449,7 @@ function InventoryPage() {
                 onChange={handleFilterChange}
                 inputClassName="py-3 pl-9 pr-4"
               >
-                <option value="">All Categories</option>
+                <option value="">{t('All Categories')}</option>
                 {categories.map((category) => (
                   <option key={category} value={category}>
                     {category}
@@ -455,9 +466,9 @@ function InventoryPage() {
                 onChange={handleFilterChange}
                 inputClassName="py-3 pl-9 pr-4"
               >
-                <option value="">All Status</option>
-                <option value="true">Purchased</option>
-                <option value="false">Pending</option>
+                <option value="">{t('All Status')}</option>
+                <option value="true">{t('Purchased')}</option>
+                <option value="false">{t('Pending')}</option>
               </Input>
             </div>
           </div>
@@ -472,13 +483,13 @@ function InventoryPage() {
         <div className="mt-6 space-y-4">
           {loading && (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              Loading grocery items...
+              {t('Loading grocery items...')}
             </p>
           )}
 
           {!loading && items.length === 0 && (
             <p className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-              No grocery items found for the current filters.
+              {t('No grocery items found for the current filters.')}
             </p>
           )}
 
@@ -489,25 +500,37 @@ function InventoryPage() {
                 className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        {item.category}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-sm text-slate-500">
-                      Quantity: {item.quantity} | Status: {item.purchased ? 'Purchased' : 'Pending'}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">
-                      {item.purchased ? 'Expiry date' : 'Expected expiry'}:{' '}
-                      {formatExpiryDate(getExpectedExpiryDate(item))}
-                    </p>
-                    {item.lastPurchasedAt && (
-                      <p className="mt-1 text-xs text-slate-400">
-                        Last purchased: {new Date(item.lastPurchasedAt).toLocaleString()}
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      alt={item.name}
+                      className="h-16 w-16 rounded-2xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
+                      style={{ mixBlendMode: 'multiply' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src = getFallbackImage(item.name, item.category)
+                      }}
+                    />
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-lg font-semibold text-slate-900">{item.name}</h3>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                          {item.category}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-500">
+                        {t('Quantity:')} {item.quantity} | {t('Status:')} {item.purchased ? t('Purchased') : t('Pending')}
                       </p>
-                    )}
+                      <p className="mt-1 text-xs text-slate-400">
+                        {item.purchased ? 'Expiry date' : 'Expected expiry'}:{' '}
+                        {formatExpiryDate(getExpectedExpiryDate(item))}
+                      </p>
+                      {item.lastPurchasedAt && (
+                        <p className="mt-1 text-xs text-slate-400">
+                          {t('Last purchased:')} {new Date(item.lastPurchasedAt).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-3">

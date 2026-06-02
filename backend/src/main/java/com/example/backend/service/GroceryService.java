@@ -246,6 +246,7 @@ public class GroceryService {
             consumeCatalogStock(item.getName(), item.getCategory(), item.getQuantity());
         }
         item.setExpiryDate(resolveExpiryDate(item.getName(), item.getCategory(), item.isPurchased(), updated.getExpiryDate()));
+        item.setImageUrl(updated.getImageUrl());
         updatePurchaseHistory(item, !wasPurchased && updated.isPurchased());
         return groceryRepository.save(item);
     }
@@ -443,7 +444,8 @@ public class GroceryService {
                 buildShoppingPriority(item, reasons, today),
                 item.getQuantity(),
                 item.isPurchased(),
-                item.getExpiryDate()
+                item.getExpiryDate(),
+                item.getImageUrl()
         );
     }
 
@@ -528,7 +530,8 @@ public class GroceryService {
                 resolveCatalogPrice(item.getName(), item.getCategory()),
                 DEFAULT_CURRENCY,
                 availableQuantity,
-                resolveAvailability(availableQuantity)
+                resolveAvailability(availableQuantity),
+                item.getImageUrl()
         );
     }
 
