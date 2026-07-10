@@ -227,7 +227,7 @@ public class AuthService {
                 .max(Comparator.comparing((User user) -> {
                     UserRole r = resolveRole(user);
                     return r == UserRole.SUPER_ADMIN || r == UserRole.ADMIN;
-                }).thenComparing(User::getId));
+                }).thenComparing((User user) -> user.getId()));
     }
 
     private UserRole resolveRole(User user) {

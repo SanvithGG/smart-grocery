@@ -79,7 +79,7 @@ class GroceryServiceTest {
         assertTrue(categories.contains("Bakery"));
         assertTrue(categories.contains("Dairy"));
         assertTrue(categories.contains("Protein"));
-        assertEquals(categories.stream().sorted(String::compareToIgnoreCase).toList(), categories);
+        assertEquals(categories.stream().sorted((a, b) -> a.compareToIgnoreCase(b)).toList(), categories);
     }
 
     @Test

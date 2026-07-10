@@ -50,16 +50,16 @@ public class SellerService {
         List<SellerProduct> products = sellerProductRepository.findBySellerIdOrderByUpdatedAtDesc(seller.getId());
         List<SellerOrder> orders = sellerOrderRepository.findBySellerIdOrderByOrderedAtDesc(seller.getId());
 
-        long activeProducts = products.stream().filter(SellerProduct::isActive).count();
+        long activeProducts = products.stream().filter(product -> product.isActive()).count();
         long lowStockProducts = products.stream()
-                .filter(SellerProduct::isActive)
+                .filter(product -> product.isActive())
                 .filter(product -> product.getStock() <= LOW_STOCK_THRESHOLD)
                 .count();
-        long totalStock = products.stream().mapToLong(SellerProduct::getStock).sum();
+        long totalStock = products.stream().mapToLong(product -> product.getStock()).sum();
         Map<String, Double> priceByProductName = products.stream()
                 .collect(Collectors.toMap(
                         product -> product.getName().toLowerCase(),
-                        SellerProduct::getPrice,
+                        product -> product.getPrice(),
                         (first, second) -> first
                 ));
         double revenue = orders.stream()

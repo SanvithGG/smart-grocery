@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,6 +42,11 @@ class AuthControllerTest {
 
     @MockitoBean
     private JwtFilter jwtFilter;
+
+    @Test
+    void contextLoadsWithMockedJwtFilter() {
+        assertNotNull(jwtFilter);
+    }
 
     @Test
     void registerReturnsSuccessMessage() throws Exception {

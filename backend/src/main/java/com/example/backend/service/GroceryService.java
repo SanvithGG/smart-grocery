@@ -84,14 +84,14 @@ public class GroceryService {
 
     public List<String> getCategories(String username) {
         return java.util.stream.Stream.concat(
-                        DEFAULT_CATALOG.stream().map(CatalogItemResponse::getCategory),
-                        getItemsByUsername(username).stream().map(GroceryItem::getCategory)
+                        DEFAULT_CATALOG.stream().map(item -> item.getCategory()),
+                        getItemsByUsername(username).stream().map(item -> item.getCategory())
                 )
                 .filter(Objects::nonNull)
-                .map(String::trim)
+                .map(category -> category.trim())
                 .filter(category -> !category.isBlank())
                 .distinct()
-                .sorted(String::compareToIgnoreCase)
+                .sorted((a, b) -> a.compareToIgnoreCase(b))
                 .toList();
     }
 
@@ -99,8 +99,8 @@ public class GroceryService {
         List<CatalogItemResponse> staticCatalog = DEFAULT_CATALOG.stream()
                 .filter(item -> matchesCatalogCategory(item, category))
                 .filter(item -> matchesCatalogSearch(item, search))
-                .sorted(Comparator.comparing(CatalogItemResponse::getCategory)
-                        .thenComparing(CatalogItemResponse::getName))
+                .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
+                        .thenComparing((CatalogItemResponse item) -> item.getName()))
                 .toList();
 
         List<CatalogItemResponse> generatedCatalog = geminiCatalogService.getCatalogSuggestions(category, search)
@@ -118,16 +118,16 @@ public class GroceryService {
 
         return mergedCatalog.values().stream()
                 .map(this::enrichCatalogItem)
-                .sorted(Comparator.comparing(CatalogItemResponse::getCategory)
-                        .thenComparing(CatalogItemResponse::getName))
+                .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
+                        .thenComparing((CatalogItemResponse item) -> item.getName()))
                 .toList();
     }
 
     public List<CatalogItemResponse> getCatalogStock() {
         return DEFAULT_CATALOG.stream()
                 .map(this::enrichCatalogItem)
-                .sorted(Comparator.comparing(CatalogItemResponse::getCategory)
-                        .thenComparing(CatalogItemResponse::getName))
+                .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
+                        .thenComparing((CatalogItemResponse item) -> item.getName()))
                 .toList();
     }
 
@@ -178,7 +178,7 @@ public class GroceryService {
 
         return shoppingItems.values().stream()
                 .sorted(Comparator.comparingInt(this::shoppingPriorityRank)
-                        .thenComparing(ShoppingItemDTO::getName))
+                        .thenComparing((ShoppingItemDTO item) -> item.getName()))
                 .toList();
     }
 
@@ -191,19 +191,19 @@ public class GroceryService {
                 .map(this::buildRecommendation)
                 .filter(recommendation -> recommendation != null)
                 .sorted(Comparator.comparingInt(this::priorityRank)
-                        .thenComparing(RecommendationResponse::getItemName))
+                        .thenComparing((RecommendationResponse rec) -> rec.getItemName()))
                 .toList();
     }
 
     public List<ExpiryAlertResponse> getExpiryAlerts(String username) {
         return getItemsByUsername(username).stream()
-                .filter(GroceryItem::isPurchased)
+                .filter(item -> item.isPurchased())
                 .filter(item -> item.getExpiryDate() != null)
                 .map(this::buildExpiryAlert)
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingInt(this::expirySeverityRank)
-                        .thenComparing(ExpiryAlertResponse::getExpiryDate)
-                        .thenComparing(ExpiryAlertResponse::getItemName))
+                        .thenComparing((ExpiryAlertResponse alert) -> alert.getExpiryDate())
+                        .thenComparing((ExpiryAlertResponse alert) -> alert.getItemName()))
                 .toList();
     }
 
@@ -211,7 +211,7 @@ public class GroceryService {
         List<GroceryItem> items = getItemsByUsername(username);
         List<RecommendationResponse> recommendations = getRecommendations(username);
 
-        long purchasedItems = items.stream().filter(GroceryItem::isPurchased).count();
+        long purchasedItems = items.stream().filter(item -> item.isPurchased()).count();
         long lowStockItems = items.stream()
                 .filter(item -> !item.isPurchased())
                 .filter(item -> item.getQuantity() <= LOW_STOCK_THRESHOLD)
@@ -377,7 +377,7 @@ public class GroceryService {
     }
 
     private String buildReason(List<GroceryItem> items) {
-        boolean hasPurchasedItem = items.stream().anyMatch(GroceryItem::isPurchased);
+        boolean hasPurchasedItem = items.stream().anyMatch(item -> item.isPurchased());
         boolean hasLowStockItem = items.stream()
                 .anyMatch(item -> !item.isPurchased() && item.getQuantity() <= LOW_STOCK_THRESHOLD);
 
