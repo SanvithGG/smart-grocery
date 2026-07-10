@@ -1,64 +1,37 @@
 # Smart Grocery
 
-Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped inventory management, dashboard insights, low-stock alerts, restock recommendations, and home kitchen expiry reminders for purchased items that are close to expiring or expire today.
+Smart Grocery is a portfolio-ready full-stack grocery planning app built with React, Spring Boot, MySQL, JWT authentication, admin workflows, inventory tracking, low-stock alerts, restock recommendations, and expiry reminders.
 
-## Highlights
+The project demonstrates an end-to-end product flow: users can manage grocery inventory and purchase queues, while admins can manage products, categories, users, and reports from a separate workspace.
 
-- JWT authentication with role-based user and admin workspaces
-- Google login support for faster sign-in
-- Inventory, buy queue, dashboard, expiry reminders, and admin reporting
-- AI-assisted catalog suggestion support through Gemini-backed catalog enrichment
-- 50 passing backend tests and passing frontend lint
+## Portfolio Focus
+
+- Full-stack architecture with a React frontend and Spring Boot REST API
+- JWT-based authentication with protected frontend routing
+- Role-based user and admin experiences
+- User-scoped inventory, buy queue, dashboard, and expiry reminder flows
+- AI-assisted catalog suggestion support through Gemini-backed enrichment
+- Validation, error handling, service/controller coverage, and recorded verification
+
+## Core Features
+
+- Register, login, and access protected app screens
+- Add, search, filter, update, and delete grocery items
+- Track purchased and pending items
+- Set expiry dates before marking items as purchased
+- View dashboard cards for total, pending, purchased, and low-stock items
+- Review recommendation queues and low-stock watchlists
+- Receive expiry alerts for items expiring soon or today
+- Acknowledge expiry alerts and remove completed purchased items
+- Use admin screens for users, products, categories, purchase queues, and reports
 
 ## Tech Stack
 
-- Frontend: React (Vite), Tailwind CSS, Axios, React Router
-- Backend: Spring Boot 3, Spring Security, Spring Validation, JPA, MySQL, JWT
-- Tooling: ESLint, Maven Wrapper
-
-## Completed Scope
-
-### Sprint 1: Authentication
-
-- user registration
-- user login
-- JWT token issuance
-- protected frontend routing
-
-### Sprint 2: Grocery CRUD
-
-- add grocery items
-- list grocery items for the current user
-- update purchased status
-- delete grocery items
-- search, category, and purchased-state filtering
-
-### Sprint 3: Smart Dashboard
-
-- summary cards for total, pending, purchased, and low-stock items
-- low-stock watchlist
-- recommendation queue
-
-### Sprint 4: Frontend Inventory and Dashboard
-
-- polished auth, dashboard, and inventory screens
-- category dropdown populated from backend data
-- catalog suggestion cards with click-to-autofill
-- protected app shell flow after login
-
-### Sprint 5: Validation and Verification
-
-- consistent backend JSON error responses
-- frontend API error extraction for validation and auth failures
-- backend service and controller tests
-- passing frontend lint and production build
-
-### Sprint 6: Expiry Tracking
-
-- purchased items can store an expiry date
-- authenticated users receive user-scoped expiry alerts for items expiring soon or today
-- acknowledging an expiry alert deletes that purchased item from the database
-- inventory UI supports setting expiry dates before marking an item as purchased
+- Frontend: React, Vite, Tailwind CSS, Axios, React Router
+- Backend: Spring Boot 3, Spring Security, Spring Validation, Spring Data JPA
+- Database: MySQL
+- Auth: JWT and Google login support
+- Tooling: Maven Wrapper, ESLint, npm
 
 ## Repository Layout
 
@@ -66,8 +39,8 @@ Smart Grocery is a full-stack grocery planning app with JWT auth, user-scoped in
 Smart_Grocery/
   backend/    Spring Boot API
   frontend/   React app
-  docs/       project report, screenshots, and diagrams
-  tools/      report/document helper scripts
+  docs/       report assets, screenshots, and diagrams
+  tools/      helper scripts
 ```
 
 ## Prerequisites
@@ -78,20 +51,22 @@ Smart_Grocery/
 
 ## Backend Setup
 
-1. Create or confirm a MySQL instance is running locally.
+1. Start or confirm a local MySQL instance.
 2. Copy the example config from `backend/src/main/resources/application.properties.template`.
-3. Update the copied file values for your local database credentials and JWT secret.
+3. Update the copied file with local database credentials and a JWT secret.
 4. Start the backend from the `backend` directory.
 
 Example backend config fields:
 
-- `spring.datasource.url=jdbc:mysql://localhost:3306/Smart_GG?createDatabaseIfNotExist=true`
-- `spring.datasource.username=YOUR_DB_USERNAME`
-- `spring.datasource.password=YOUR_DB_PASSWORD`
-- `app.jwt.secret=REPLACE_WITH_A_LONG_RANDOM_SECRET`
-- `app.cors.allowed-origins=http://localhost:5173`
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/Smart_GG?createDatabaseIfNotExist=true
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+app.jwt.secret=REPLACE_WITH_A_LONG_RANDOM_SECRET
+app.cors.allowed-origins=http://localhost:5173
+```
 
-Run commands:
+Run the backend:
 
 ```powershell
 cd backend
@@ -100,15 +75,13 @@ cd backend
 
 Backend base URL:
 
-`http://localhost:8080`
+```text
+http://localhost:8080
+```
 
 ## Frontend Setup
 
-1. Install dependencies from the `frontend` directory.
-2. Start the Vite dev server.
-3. Open the local app in a browser after the backend is running.
-
-Run commands:
+Install dependencies and start the Vite dev server from the `frontend` directory:
 
 ```powershell
 cd frontend
@@ -118,7 +91,9 @@ npm run dev
 
 Frontend URL:
 
-`http://localhost:5173`
+```text
+http://localhost:5173
+```
 
 ## Local Run Flow
 
@@ -126,7 +101,7 @@ Frontend URL:
 2. Start the backend on port `8080`.
 3. Start the frontend on port `5173`.
 4. Register a user from the frontend.
-5. Login and verify the dashboard and inventory flows.
+5. Log in and verify the dashboard, inventory, quick-buy, and admin flows.
 
 ## Screenshots
 
@@ -159,7 +134,7 @@ Architecture:
 
 ## Verification Status
 
-The latest recorded verification in this repo is:
+Latest recorded verification:
 
 - `frontend`: `npm run lint`
 - `frontend`: `npm run build` may fail in some Windows environments because Vite/Tailwind can hit native binding or `spawn EPERM` issues
