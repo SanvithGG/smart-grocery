@@ -10,4 +10,5 @@ public interface SellerOrderRepository extends JpaRepository<SellerOrder, Long> 
     List<SellerOrder> findAllByOrderByOrderedAtDesc();
     List<SellerOrder> findBySellerIdOrderByOrderedAtDesc(Long sellerId);
     Optional<SellerOrder> findByIdAndSellerId(Long id, Long sellerId);
+    void deleteBySellerId(Long sellerId);
 }

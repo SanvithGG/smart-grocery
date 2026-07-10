@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
   CircleUserRound,
+  Eye,
+  EyeOff,
   KeyRound,
   LockKeyhole,
   Mail,
@@ -42,6 +44,10 @@ function getPostLoginPath(role) {
     return '/super-admin'
   }
 
+  if (normalizedRole === 'ADMIN') {
+    return '/admin'
+  }
+
   if (normalizedRole === 'SELLER') {
     return '/seller'
   }
@@ -59,6 +65,7 @@ function AuthPage({ mode }) {
   const [loading, setLoading] = useState(false)
   const [resetRequested, setResetRequested] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const googleButtonRef = useRef(null)
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
@@ -72,6 +79,7 @@ function AuthPage({ mode }) {
     setSuccess('')
     setResetRequested(false)
     setForm(initialForm)
+    setShowPassword(false)
   }
 
   const handleGoogleCredential = useCallback(async (response) => {
@@ -278,7 +286,7 @@ function AuthPage({ mode }) {
                   <LockKeyhole className="h-5 w-5 text-slate-400" />
                   <input
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={form.password}
                     onChange={handleChange}
                     className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm outline-none"
@@ -286,6 +294,18 @@ function AuthPage({ mode }) {
                     required
                     minLength={8}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="ml-2 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </label>
             )}

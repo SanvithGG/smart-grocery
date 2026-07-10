@@ -72,13 +72,21 @@ function AdminShell({ workspace = "admin" }) {
           },
           { to: "/admin/reports", label: "Reports", icon: BarChart3 },
         ];
-  const workspaceEyebrow = isSellerWorkspace ? "Seller Workspace" : "Super Admin Workspace";
+  const workspaceEyebrow = isSellerWorkspace
+    ? "Seller Workspace"
+    : isSuperAdminWorkspace
+      ? "Super Admin Workspace"
+      : "Admin Workspace";
   const workspaceTitle = isSellerWorkspace
     ? "Smart Grocery seller center"
-    : "Smart Grocery control center";
+    : isSuperAdminWorkspace
+      ? "Smart Grocery control center"
+      : "Smart Grocery admin center";
   const workspaceDescription = isSellerWorkspace
     ? "Smart Grocery seller workspace"
-    : "Smart Grocery super admin workspace";
+    : isSuperAdminWorkspace
+      ? "Smart Grocery super admin workspace"
+      : "Smart Grocery admin workspace";
 
   const handleLogout = () => {
     clearSession();

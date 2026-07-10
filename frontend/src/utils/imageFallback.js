@@ -133,3 +133,14 @@ export function getFallbackImage(name, category) {
 
   return GLOBAL_FALLBACK
 }
+
+export function resolveImageUrl(url, name, category) {
+  if (!url) {
+    return getFallbackImage(name, category)
+  }
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url
+  }
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+  return `${baseUrl}${url}`
+}

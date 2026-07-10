@@ -218,7 +218,7 @@ export const buildSellerBusinessInsights = ({ products = [], orders = [], revenu
   const lowStockProduct = products
     .filter((product) => product.active !== false && Number(product.stock) <= 3)
     .sort((first, second) => Number(first.stock) - Number(second.stock))[0]
-  const pendingOrders = orders.filter((order) => order.status === 'PENDING')
+  const pendingOrders = orders.filter((order) => order.status === 'DELIVERING')
   const deliveredOrders = orders.filter((order) => order.status === 'DELIVERED')
   const productMovement = orders.reduce((counts, order) => ({
     ...counts,
@@ -231,15 +231,17 @@ export const buildSellerBusinessInsights = ({ products = [], orders = [], revenu
     pendingOrders.length > 0 && {
       id: 'pending-orders',
       tone: 'amber',
-      title: `${pendingOrders.length} pending order(s)`,
-      message: 'Accept or deliver these orders to keep customers updated.',
-      meta: 'Needs action',
+      title: `${pendingOrders.length} active order(s)`,
+      message: 'Deliver these orders to move them into revenue.',
+      meta: 'Needs delivery',
     },
     lowStockProduct && {
       id: 'low-stock',
       tone: 'rose',
       title: `Restock ${lowStockProduct.name}`,
-      message: `${lowStockProduct.name} has only ${lowStockProduct.stock} unit(s) left.`,
+      message: Number(lowStockProduct.stock) === 0
+        ? `All stock of ${lowStockProduct.name} has been bought!`
+        : `${lowStockProduct.name} has only ${lowStockProduct.stock} unit(s) left.`,
       meta: lowStockProduct.category,
     },
     topProduct && {
@@ -255,14 +257,14 @@ export const buildSellerBusinessInsights = ({ products = [], orders = [], revenu
       title: deliveredOrders.length > 0 ? 'Revenue is active' : 'Revenue starts after delivery',
       message: deliveredOrders.length > 0
         ? `Delivered orders have generated Rs ${Math.round(revenue).toLocaleString('en-IN')}.`
-        : 'Mark accepted orders as delivered to move value into revenue.',
+        : 'Complete active deliveries to move value into revenue.',
       meta: `${deliveredOrders.length} delivered`,
     },
   ].filter(Boolean)
 }
 
 export const buildSuperAdminInsights = ({ summary, report, users = [], sellerProducts = [], sellerOrders = [] }) => {
-  const pendingSellerOrders = sellerOrders.filter((order) => order.status === 'PENDING')
+  const pendingSellerOrders = sellerOrders.filter((order) => order.status === 'DELIVERING')
   const deliveredSellerOrders = sellerOrders.filter((order) => order.status === 'DELIVERED')
   const categories = [
     ...(report?.categoryBreakdown || []).map((category) => category.name),
@@ -283,8 +285,8 @@ export const buildSuperAdminInsights = ({ summary, report, users = [], sellerPro
     pendingSellerOrders.length > 0 && {
       id: 'pending-seller-orders',
       tone: 'amber',
-      title: `${pendingSellerOrders.length} seller order(s) pending`,
-      message: 'Sellers have customer requests waiting for action.',
+      title: `${pendingSellerOrders.length} seller order(s) delivering`,
+      message: 'Sellers have customer orders being delivered.',
       meta: 'Seller ops',
     },
     summary?.lowStockProducts > 0 && {

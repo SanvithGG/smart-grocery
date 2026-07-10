@@ -77,7 +77,7 @@ function SellerDashboardPage() {
       value: orders.length,
       icon: ShoppingCart,
       accent: 'sky',
-      helper: `${summary?.pendingOrders ?? 0} pending`,
+      helper: `${summary?.pendingOrders ?? 0} delivering`,
     },
     {
       label: 'Inventory Count',
@@ -200,7 +200,11 @@ function SellerDashboardPage() {
                     {order.customerName} | Qty {order.quantity}
                   </p>
                 </div>
-                <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  order.status === 'DELIVERED'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-sky-50 text-sky-700'
+                }`}>
                   {order.status}
                 </span>
               </div>

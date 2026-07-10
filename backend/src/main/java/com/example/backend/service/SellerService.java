@@ -31,15 +31,18 @@ public class SellerService {
     private final UserRepository userRepository;
     private final SellerProductRepository sellerProductRepository;
     private final SellerOrderRepository sellerOrderRepository;
+    private final EmailService emailService;
 
     public SellerService(
             UserRepository userRepository,
             SellerProductRepository sellerProductRepository,
-            SellerOrderRepository sellerOrderRepository
+            SellerOrderRepository sellerOrderRepository,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.sellerProductRepository = sellerProductRepository;
         this.sellerOrderRepository = sellerOrderRepository;
+        this.emailService = emailService;
     }
 
     public SellerDashboardResponse getDashboard(String username) {
@@ -68,8 +71,8 @@ public class SellerService {
                 products.size(),
                 activeProducts,
                 lowStockProducts,
-                countOrdersByStatus(orders, SellerOrderStatus.PENDING),
-                countOrdersByStatus(orders, SellerOrderStatus.ACCEPTED),
+                countOrdersByStatus(orders, SellerOrderStatus.DELIVERING),
+                0L,
                 countOrdersByStatus(orders, SellerOrderStatus.DELIVERED),
                 totalStock,
                 revenue
@@ -154,11 +157,54 @@ public class SellerService {
         order.setUnitPrice(product.getPrice());
         order.setTotalPrice(product.getPrice() * request.getQuantity());
         order.setCustomerName(customer.getUsername());
-        order.setStatus(SellerOrderStatus.PENDING);
+        order.setStatus(SellerOrderStatus.DELIVERING);
         order.setOrderedAt(LocalDateTime.now());
         order.setSeller(product.getSeller());
 
-        return mapOrder(sellerOrderRepository.save(order));
+        SellerOrder savedOrder = sellerOrderRepository.save(order);
+
+        // 📧 Send email notifications safely
+        String customerEmail = customer.getEmail();
+        String sellerEmail = product.getSeller().getEmail();
+        double orderTotal = order.getTotalPrice();
+
+        if (sellerEmail != null && !sellerEmail.isEmpty()) {
+            String sellerSubject = "New Grocery Order Received: " + order.getProductName();
+            String sellerBody = "Hello " + product.getSeller().getUsername() + ",\n\n" +
+                    "You have received a new order on Smart Grocery marketplace:\n\n" +
+                    "Item: " + order.getProductName() + "\n" +
+                    "Quantity: " + order.getQuantity() + "\n" +
+                    "Total Price: Rs " + orderTotal + "\n" +
+                    "Customer: " + customer.getUsername() + "\n\n" +
+                    "This order is set to DELIVERING. Please deliver it as soon as possible.\n\n" +
+                    "Best regards,\nSmart Grocery Team";
+            emailService.sendEmail(sellerEmail, sellerSubject, sellerBody);
+        }
+
+        if (customerEmail != null && !customerEmail.isEmpty()) {
+            String customerSubject = "Order Confirmation: " + order.getProductName();
+            String customerBody = "Hello " + customer.getUsername() + ",\n\n" +
+                    "Your order has been placed successfully on Smart Grocery marketplace:\n\n" +
+                    "Item: " + order.getProductName() + "\n" +
+                    "Quantity: " + order.getQuantity() + "\n" +
+                    "Total Price: Rs " + orderTotal + "\n" +
+                    "Merchant: " + product.getSeller().getUsername() + "\n\n" +
+                    "Status: DELIVERING\n\n" +
+                    "The merchant is currently delivering your order. We will notify you once it has been delivered.\n\n" +
+                    "Best regards,\nSmart Grocery Team";
+            emailService.sendEmail(customerEmail, customerSubject, customerBody);
+        }
+
+        if (product.getStock() == 0 && sellerEmail != null && !sellerEmail.isEmpty()) {
+            String stockSubject = "Product Out of Stock: " + product.getName();
+            String stockBody = "Hello " + product.getSeller().getUsername() + ",\n\n" +
+                    "All stock for your product '" + product.getName() + "' has been bought!\n\n" +
+                    "Please restock your product to keep receiving orders.\n\n" +
+                    "Best regards,\nSmart Grocery Team";
+            emailService.sendEmail(sellerEmail, stockSubject, stockBody);
+        }
+
+        return mapOrder(savedOrder);
     }
 
     public SellerOrderResponse updateOrderStatus(String username, Long id, SellerOrderStatusUpdateRequest request) {
@@ -170,11 +216,27 @@ public class SellerService {
         try {
             nextStatus = SellerOrderStatus.valueOf(request.getStatus().trim().toUpperCase());
         } catch (IllegalArgumentException exception) {
-            throw new ConflictException("Order status must be PENDING, ACCEPTED, or DELIVERED");
+            throw new ConflictException("Order status must be DELIVERING or DELIVERED");
         }
 
         order.setStatus(nextStatus);
-        return mapOrder(sellerOrderRepository.save(order));
+        SellerOrder savedOrder = sellerOrderRepository.save(order);
+
+        // 📧 Notify consumer of the status update
+        User customer = userRepository.findByUsername(order.getCustomerName()).orElse(null);
+        if (customer != null && customer.getEmail() != null && !customer.getEmail().isEmpty()) {
+            String subject = "Smart Grocery Order Status Update: " + order.getProductName();
+            String body = "Hello " + customer.getUsername() + ",\n\n" +
+                    "The merchant (" + seller.getUsername() + ") has updated the status of your order:\n\n" +
+                    "Item: " + order.getProductName() + "\n" +
+                    "Quantity: " + order.getQuantity() + "\n" +
+                    "New Status: " + nextStatus.name() + "\n\n" +
+                    "Thank you for shopping on Smart Grocery!\n\n" +
+                    "Best regards,\nSmart Grocery Team";
+            emailService.sendEmail(customer.getEmail(), subject, body);
+        }
+
+        return mapOrder(savedOrder);
     }
 
     private User getSeller(String username) {

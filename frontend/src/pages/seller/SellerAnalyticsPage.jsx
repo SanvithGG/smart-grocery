@@ -32,7 +32,7 @@ function SellerAnalyticsPage() {
   const analytics = useMemo(() => {
     const lowStock = products.filter((product) => product.active && product.stock <= 3)
     const delivered = orders.filter((order) => order.status === 'DELIVERED')
-    const pending = orders.filter((order) => order.status === 'PENDING')
+    const pending = orders.filter((order) => order.status === 'DELIVERING')
     const totalStock = products.reduce((total, product) => total + product.stock, 0)
     const salesTrendMap = new Map()
 
@@ -67,7 +67,7 @@ function SellerAnalyticsPage() {
 
   const cards = [
     { label: 'Delivery Rate', value: `${analytics.deliveryRate}%`, icon: TrendingUp, accent: 'emerald' },
-    { label: 'Pending Orders', value: analytics.pending.length, icon: Activity, accent: 'sky' },
+    { label: 'Delivering Orders', value: analytics.pending.length, icon: Activity, accent: 'sky' },
     { label: 'Low Stock', value: analytics.lowStock.length, icon: AlertCircle, accent: 'amber' },
     { label: 'Categories', value: analytics.categoryBreakdown.length, icon: Layers3, accent: 'violet' },
   ]
@@ -130,7 +130,7 @@ function SellerAnalyticsPage() {
             Suggested Action
           </p>
           <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-            Keep low-stock products updated before accepting more orders.
+            Keep low-stock products updated before more orders are placed.
           </h3>
           <p className="mt-3 text-sm leading-7 text-slate-500">
             Current stock across your seller account is {analytics.totalStock} units.

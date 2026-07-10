@@ -49,7 +49,9 @@ function App() {
           <Route path="/superadmin/sellers" element={<SuperAdminSellersPage />} />
           <Route path="/superadmin/analytics" element={<SuperAdminAnalyticsPage />} />
         </Route>
+      </Route>
 
+      <Route element={<ProtectedRoute requiredRole={['ADMIN', 'SUPER_ADMIN']} redirectTo="/login" />}>
         <Route element={<AdminShell />}>
           <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />

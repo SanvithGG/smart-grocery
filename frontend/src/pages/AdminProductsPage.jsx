@@ -12,7 +12,7 @@ import {
   updateAdminCatalogStock,
   updateAdminProduct,
 } from '../services/adminService'
-import { getFallbackImage } from '../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../utils/imageFallback'
 
 const t = (text) => text
 
@@ -208,7 +208,7 @@ function AdminProductsPage({ workspace = 'admin' }) {
               <article key={stockKey} className="rounded-3xl border border-slate-200 bg-slate-50/90 p-5">
                 <div className="flex items-center gap-4">
                   <img
-                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                     alt={item.name}
                     className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                     style={{ mixBlendMode: 'multiply' }}
@@ -267,7 +267,7 @@ function AdminProductsPage({ workspace = 'admin' }) {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
                 <img
-                  src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                  src={resolveImageUrl(product.imageUrl, product.name, product.category)}
                   alt={product.name}
                   className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                   style={{ mixBlendMode: 'multiply' }}

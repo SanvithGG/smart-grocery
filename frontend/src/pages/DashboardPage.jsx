@@ -16,7 +16,7 @@ import {
   getSummary,
 } from '../services/groceryService'
 import { buildDashboardSmartInsights, findSellerMatchesForItem } from '../utils/smartSuggestions'
-import { getFallbackImage } from '../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../utils/imageFallback'
 
 const t = (text) => text
 
@@ -383,7 +383,7 @@ function DashboardPage() {
                   >
                     <div className="flex items-center gap-4">
                       <img
-                        src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                        src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                         alt={item.name}
                         className="h-12 w-12 rounded-xl object-cover bg-white/10 border border-white/10 shadow-sm"
                         style={{ mixBlendMode: 'multiply' }}
@@ -471,7 +471,7 @@ function DashboardPage() {
                 >
                   <div className="flex items-center gap-4">
                     <img
-                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                       alt={item.name}
                       className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                       style={{ mixBlendMode: 'multiply' }}
@@ -582,7 +582,7 @@ function DashboardPage() {
               >
                 <div className="flex items-center gap-4">
                   <img
-                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                     alt={item.name}
                     className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                     style={{ mixBlendMode: 'multiply' }}

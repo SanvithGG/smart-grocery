@@ -34,21 +34,22 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public List<AdminUserSummaryResponse> getUsers() {
-        return adminService.getUsers();
+    public List<AdminUserSummaryResponse> getUsers(java.security.Principal principal) {
+        return adminService.getUsers(principal.getName());
     }
 
     @PutMapping("/users/{id}/role")
     public AdminUserSummaryResponse updateUserRole(
+            java.security.Principal principal,
             @PathVariable Long id,
             @Valid @RequestBody AdminUserRoleUpdateRequest request
     ) {
-        return adminService.updateUserRole(id, request);
+        return adminService.updateUserRole(principal.getName(), id, request);
     }
 
     @DeleteMapping("/users/{id}")
-    public void deleteUser(@PathVariable Long id) {
-        adminService.deleteUser(id);
+    public void deleteUser(java.security.Principal principal, @PathVariable Long id) {
+        adminService.deleteUser(principal.getName(), id);
     }
 
     @GetMapping("/products")

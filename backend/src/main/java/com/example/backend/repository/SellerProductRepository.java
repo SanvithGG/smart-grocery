@@ -11,4 +11,5 @@ public interface SellerProductRepository extends JpaRepository<SellerProduct, Lo
     List<SellerProduct> findBySellerIdOrderByUpdatedAtDesc(Long sellerId);
     List<SellerProduct> findByActiveTrueAndStockGreaterThanOrderByUpdatedAtDesc(int stock);
     Optional<SellerProduct> findByIdAndSellerId(Long id, Long sellerId);
+    void deleteBySellerId(Long sellerId);
 }

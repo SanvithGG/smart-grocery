@@ -9,7 +9,7 @@ export function normalizeRole(role) {
 
   const normalizedRole = String(role).trim().toUpperCase().replace(/^ROLE_/, '')
 
-  if (normalizedRole === 'ADMIN' || normalizedRole === 'SUPERADMIN') {
+  if (normalizedRole === 'SUPERADMIN') {
     return 'SUPER_ADMIN'
   }
 

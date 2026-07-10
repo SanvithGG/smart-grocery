@@ -137,7 +137,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginByEmailPrefersAdminWhenDuplicateEmailExists() {
+    void loginByEmailPrefersAdministrativeAccountWhenDuplicateEmailExists() {
         AuthRequest request = new AuthRequest();
         request.setUsername("admin@gmail.com");
         request.setPassword("Admin@123");
@@ -154,7 +154,7 @@ class AuthServiceTest {
 
         assertEquals("admin-token", response.getToken());
         assertEquals("admin", response.getUsername());
-        assertEquals("SUPER_ADMIN", response.getRole());
+        assertEquals("ADMIN", response.getRole());
     }
 
     @Test

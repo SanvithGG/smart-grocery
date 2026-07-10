@@ -17,7 +17,7 @@ import {
 } from '../services/groceryService'
 import { getNaturalExpiryDate } from '../utils/expiry'
 import { buildHomeSmartBuySuggestions } from '../utils/smartSuggestions'
-import { getFallbackImage } from '../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../utils/imageFallback'
 
 const AVAILABILITY_THRESHOLD = 3
 const initialQuickAddDraft = {
@@ -924,7 +924,7 @@ function HomePage() {
               >
                 <div className="relative h-48 w-full overflow-hidden border-b border-slate-100/50 bg-slate-50/50">
                   <img
-                    src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                    src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                     alt={item.name}
                     className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
                     onError={(e) => {
@@ -1027,7 +1027,7 @@ function HomePage() {
               >
                 <div className="relative h-48 w-full overflow-hidden border-b border-slate-100/50 bg-slate-50/50">
                   <img
-                    src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                    src={resolveImageUrl(product.imageUrl, product.name, product.category)}
                     alt={product.name}
                     className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
                     onError={(e) => {

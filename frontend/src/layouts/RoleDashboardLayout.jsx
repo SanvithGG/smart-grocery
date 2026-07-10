@@ -41,23 +41,34 @@ function RoleDashboardLayout({
         setSellerNotifications(
           [
             ...orders
-            .filter((order) => order.status === 'PENDING')
+            .filter((order) => order.status === 'DELIVERING')
             .slice(0, 6)
             .map((order) => ({
               id: `order-${order.id}`,
               title: `New order: ${order.productName}`,
-              message: `${order.customerName} requested ${order.quantity} unit(s).`,
+              message: `${order.customerName} ordered ${order.quantity} unit(s).`,
               meta: order.totalPrice ? `Rs ${Math.round(order.totalPrice).toLocaleString('en-IN')}` : order.status,
             })),
             ...products
               .filter((product) => product.active !== false && Number(product.stock) <= 3)
               .slice(0, 4)
-              .map((product) => ({
-                id: `stock-${product.id}`,
-                title: `Low stock: ${product.name}`,
-                message: `${product.name} has only ${product.stock} unit(s) left.`,
-                meta: product.category,
-              })),
+              .map((product) => {
+                const stockVal = Number(product.stock)
+                if (stockVal === 0) {
+                  return {
+                    id: `stock-out-${product.id}`,
+                    title: `Out of stock: ${product.name}`,
+                    message: `All stock has been bought!`,
+                    meta: 'Sold Out',
+                  }
+                }
+                return {
+                  id: `stock-${product.id}`,
+                  title: `Low stock: ${product.name}`,
+                  message: `${product.name} has only ${product.stock} unit(s) left.`,
+                  meta: product.category,
+                }
+              }),
           ].slice(0, 8),
         )
       } catch {
@@ -156,8 +167,8 @@ function RoleDashboardLayout({
               tone={tone}
               notifications={isSellerWorkspace ? sellerNotifications : []}
               notificationTitle={isSellerWorkspace ? 'Seller Alerts' : undefined}
-              notificationSubtitle={isSellerWorkspace ? 'Pending customer orders' : undefined}
-              notificationEmpty={isSellerWorkspace ? 'No pending seller orders.' : undefined}
+              notificationSubtitle={isSellerWorkspace ? 'Orders in progress' : undefined}
+              notificationEmpty={isSellerWorkspace ? 'No active orders.' : undefined}
               notificationStorageKey={isSellerWorkspace ? 'seller-read-notification-ids' : undefined}
               onNotificationClick={
                 isSellerWorkspace

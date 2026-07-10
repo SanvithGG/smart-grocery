@@ -12,7 +12,6 @@ import {
 const roleOptions = [
   { value: 'USER', label: 'Set As User' },
   { value: 'SELLER', label: 'Set As Seller' },
-  { value: 'SUPER_ADMIN', label: 'Set As Super Admin' },
 ]
 
 function AdminUsersPage() {

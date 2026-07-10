@@ -7,7 +7,7 @@ import RoleDashboardLayout from '../../layouts/RoleDashboardLayout'
 import { getSellerOrders, updateSellerOrderStatus } from '../../services/sellerService'
 import { CheckCircle2, Clock3, PackageCheck, ShoppingCart } from 'lucide-react'
 
-const statuses = ['PENDING', 'ACCEPTED', 'DELIVERED']
+const statuses = ['DELIVERING', 'DELIVERED']
 
 const formatPrice = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -49,8 +49,7 @@ function SellerOrdersPage() {
 
   const stats = [
     { label: 'Orders', value: orders.length, icon: ShoppingCart, accent: 'sky' },
-    { label: 'Pending', value: orders.filter((order) => order.status === 'PENDING').length, icon: Clock3, accent: 'amber' },
-    { label: 'Accepted', value: orders.filter((order) => order.status === 'ACCEPTED').length, icon: PackageCheck, accent: 'violet' },
+    { label: 'Delivering', value: orders.filter((order) => order.status === 'DELIVERING').length, icon: Clock3, accent: 'amber' },
     { label: 'Delivered', value: orders.filter((order) => order.status === 'DELIVERED').length, icon: CheckCircle2, accent: 'emerald' },
   ]
 
@@ -63,7 +62,7 @@ function SellerOrdersPage() {
       navItems={sellerNavigationItems}
       eyebrow="Seller Orders"
       title="Manage order status"
-      description="Move orders through pending, accepted, and delivered states."
+      description="Move orders through delivering and delivered states."
     >
       {error && (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -71,7 +70,7 @@ function SellerOrdersPage() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-3 xl:grid-cols-3">
         {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
@@ -109,7 +108,7 @@ function SellerOrdersPage() {
                     type="button"
                     onClick={() => handleStatusChange(order, status)}
                     disabled={savingId === order.id || order.status === status}
-                    variant={status === 'DELIVERED' ? 'success' : status === 'ACCEPTED' ? 'sky' : 'secondary'}
+                    variant={status === 'DELIVERED' ? 'success' : status === 'DELIVERING' ? 'sky' : 'secondary'}
                   >
                     {savingId === order.id ? 'Saving...' : status}
                   </Button>

@@ -61,3 +61,9 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Hide Microsoft Edge / IE native password reveal/clear buttons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

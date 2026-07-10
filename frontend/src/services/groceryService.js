@@ -69,3 +69,14 @@ export async function getShoppingList() {
   const { data } = await api.get('/api/grocery/shopping-list')
   return data
 }
+
+export async function uploadImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/api/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return data
+}

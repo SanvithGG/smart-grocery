@@ -84,10 +84,21 @@ public class AdminService {
         );
     }
 
-    public List<AdminUserSummaryResponse> getUsers() {
+    public List<AdminUserSummaryResponse> getUsers(String adminUsername) {
+        User adminUser = userRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+        UserRole adminRole = resolveRole(adminUser);
+
         List<GroceryItem> products = groceryRepository.findAll();
 
         return userRepository.findAll().stream()
+                .filter(user -> {
+                    if (adminRole == UserRole.ADMIN) {
+                        UserRole role = resolveRole(user);
+                        return role == UserRole.USER || role == UserRole.SELLER;
+                    }
+                    return true;
+                })
                 .sorted(Comparator.comparing(User::getUsername, String.CASE_INSENSITIVE_ORDER))
                 .map(user -> {
                     long totalItems = products.stream()
@@ -111,19 +122,31 @@ public class AdminService {
                 .toList();
     }
 
-    public AdminUserSummaryResponse updateUserRole(Long id, AdminUserRoleUpdateRequest request) {
+    public AdminUserSummaryResponse updateUserRole(String adminUsername, Long id, AdminUserRoleUpdateRequest request) {
+        User adminUser = userRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+        UserRole adminRole = resolveRole(adminUser);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+        UserRole currentTargetRole = resolveRole(user);
         UserRole nextRole = parseRole(request.getRole());
 
-        if (nextRole == UserRole.ADMIN) {
-            nextRole = UserRole.SUPER_ADMIN;
+        if (adminRole == UserRole.ADMIN) {
+            if (currentTargetRole == UserRole.ADMIN || currentTargetRole == UserRole.SUPER_ADMIN) {
+                throw new ConflictException("You do not have permission to modify administrative accounts");
+            }
+            if (nextRole == UserRole.ADMIN || nextRole == UserRole.SUPER_ADMIN) {
+                throw new ConflictException("You do not have permission to grant administrative roles");
+            }
         }
 
-        if (isSuperAdmin(user) && nextRole != UserRole.SUPER_ADMIN
-                && countSuperAdmins() <= 1) {
-            throw new ConflictException("At least one super admin account must remain");
+        if (adminRole == UserRole.SUPER_ADMIN) {
+            if (currentTargetRole == UserRole.SUPER_ADMIN && nextRole != UserRole.SUPER_ADMIN
+                    && countSuperAdmins() <= 1) {
+                throw new ConflictException("At least one super admin account must remain");
+            }
         }
 
         user.setRole(nextRole);
@@ -149,15 +172,31 @@ public class AdminService {
     }
 
     @Transactional
-    public void deleteUser(Long id) {
+    public void deleteUser(String adminUsername, Long id) {
+        User adminUser = userRepository.findByUsername(adminUsername)
+                .orElseThrow(() -> new ResourceNotFoundException("Admin not found"));
+        UserRole adminRole = resolveRole(adminUser);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        if (isSuperAdmin(user) && countSuperAdmins() <= 1) {
-            throw new ConflictException("At least one super admin account must remain");
+        UserRole targetRole = resolveRole(user);
+
+        if (adminRole == UserRole.ADMIN) {
+            if (targetRole == UserRole.ADMIN || targetRole == UserRole.SUPER_ADMIN) {
+                throw new ConflictException("You do not have permission to delete administrative accounts");
+            }
+        }
+
+        if (adminRole == UserRole.SUPER_ADMIN) {
+            if (targetRole == UserRole.SUPER_ADMIN && countSuperAdmins() <= 1) {
+                throw new ConflictException("At least one super admin account must remain");
+            }
         }
 
         groceryRepository.deleteByUserId(user.getId());
+        sellerOrderRepository.deleteBySellerId(user.getId());
+        sellerProductRepository.deleteBySellerId(user.getId());
         userRepository.delete(user);
     }
 
@@ -338,10 +377,6 @@ public class AdminService {
     }
 
     private UserRole resolveRole(User user) {
-        if (user.getRole() == UserRole.ADMIN) {
-            return UserRole.SUPER_ADMIN;
-        }
-
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 
@@ -355,7 +390,7 @@ public class AdminService {
         try {
             return UserRole.valueOf(normalizedRole);
         } catch (IllegalArgumentException exception) {
-            throw new ConflictException("Role must be USER, SELLER, or SUPER_ADMIN");
+            throw new ConflictException("Role must be USER, SELLER, ADMIN, or SUPER_ADMIN");
         }
     }
 

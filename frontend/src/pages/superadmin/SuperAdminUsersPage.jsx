@@ -12,13 +12,14 @@ import {
 const roleOptions = [
   { value: 'USER', label: 'User' },
   { value: 'SELLER', label: 'Seller' },
-  { value: 'SUPER_ADMIN', label: 'Super Admin' },
+  { value: 'ADMIN', label: 'Admin' },
 ]
 
 const filterOptions = [
   { value: 'ALL', label: 'All Accounts' },
   { value: 'USER', label: 'Users' },
   { value: 'SELLER', label: 'Sellers' },
+  { value: 'ADMIN', label: 'Admins' },
   { value: 'SUPER_ADMIN', label: 'Super Admins' },
 ]
 
@@ -48,7 +49,7 @@ function SuperAdminUsersPage() {
           ...counts,
           [user.role]: (counts[user.role] || 0) + 1,
         }),
-        { USER: 0, SELLER: 0, SUPER_ADMIN: 0 },
+        { USER: 0, SELLER: 0, ADMIN: 0, SUPER_ADMIN: 0 },
       ),
     [users],
   )
@@ -117,12 +118,13 @@ function SuperAdminUsersPage() {
         </div>
       )}
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-5">
         {[
           ['All', users.length, 'text-slate-500'],
           ['Users', roleCounts.USER, 'text-sky-700'],
           ['Sellers', roleCounts.SELLER, 'text-emerald-700'],
-          ['Admins', roleCounts.SUPER_ADMIN, 'text-indigo-700'],
+          ['Admins', roleCounts.ADMIN, 'text-purple-700'],
+          ['Super Admins', roleCounts.SUPER_ADMIN, 'text-indigo-700'],
         ].map(([label, value, tone]) => (
           <article key={label} className="rounded-3xl border border-white/70 bg-white/85 p-5">
             <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${tone}`}>{label}</p>

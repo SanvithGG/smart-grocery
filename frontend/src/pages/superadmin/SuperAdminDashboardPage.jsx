@@ -39,7 +39,7 @@ function SuperAdminDashboardPage() {
     { label: 'User Items', value: summary?.totalProducts ?? 0 },
     { label: 'Seller Items', value: sellerProducts.length },
     { label: 'Seller Orders', value: sellerOrders.length },
-    { label: 'Pending', value: sellerOrders.filter((order) => order.status === 'PENDING').length },
+    { label: 'Delivering', value: sellerOrders.filter((order) => order.status === 'DELIVERING').length },
     { label: 'Delivered', value: sellerOrders.filter((order) => order.status === 'DELIVERED').length },
   ]
   const productDistributionData = [

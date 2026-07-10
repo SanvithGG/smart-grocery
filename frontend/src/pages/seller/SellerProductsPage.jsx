@@ -9,7 +9,8 @@ import { sellerNavigationItems } from '../../data/sellerNavigation'
 import RoleDashboardLayout from '../../layouts/RoleDashboardLayout'
 import { getCategorySuggestions, getPriceSuggestion } from '../../utils/smartSuggestions'
 import { getNaturalExpiryDate } from '../../utils/expiry'
-import { getFallbackImage } from '../../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../../utils/imageFallback'
+import { uploadImage } from '../../services/groceryService'
 
 import {
   createSellerProduct,
@@ -36,6 +37,7 @@ function SellerProductsPage() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null)
   const categorySuggestions = getCategorySuggestions(form.name)
@@ -82,6 +84,26 @@ function SellerProductsPage() {
   const resetForm = () => {
     setForm(emptyForm)
     setEditingId(null)
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+
+    try {
+      const data = await uploadImage(file)
+      setForm((current) => ({
+        ...current,
+        imageUrl: data.url,
+      }))
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, 'Failed to upload image.'))
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleEdit = (product) => {
@@ -248,13 +270,34 @@ function SellerProductsPage() {
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-3">
+            <div className="border-t border-slate-100 pt-3 space-y-2">
               <Input
                 name="imageUrl"
                 value={form.imageUrl || ''}
                 onChange={handleChange}
                 placeholder="Optional Product Image URL (transparent background PNG blends best)"
               />
+              <div className="flex items-center gap-3">
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+                  <span>Upload File</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+                {uploading && <span className="text-xs text-slate-500 animate-pulse">Uploading...</span>}
+                {form.imageUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((c) => ({ ...c, imageUrl: '' }))}
+                    className="text-xs font-medium text-rose-600 hover:text-rose-800"
+                  >
+                    Clear image
+                  </button>
+                )}
+              </div>
             </div>
           </form>
           {editingId && (
@@ -276,7 +319,7 @@ function SellerProductsPage() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-4">
                   <img
-                    src={product.imageUrl || getFallbackImage(product.name, product.category)}
+                    src={resolveImageUrl(product.imageUrl, product.name, product.category)}
                     alt={product.name}
                     className="h-16 w-16 rounded-2xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                     style={{ mixBlendMode: 'multiply' }}

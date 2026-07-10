@@ -12,9 +12,10 @@ import {
   getCategories,
   getGroceries,
   updateGrocery,
+  uploadImage,
 } from '../services/groceryService'
 import { getNaturalExpiryDate } from '../utils/expiry'
-import { getFallbackImage } from '../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../utils/imageFallback'
 
 const t = (text) => text
 
@@ -40,6 +41,7 @@ function InventoryPage() {
   const [categories, setCategories] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
   const [form, setForm] = useState(initialForm)
+  const [uploading, setUploading] = useState(false)
   const [filters, setFilters] = useState({ category: '', search: '', purchased: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -187,6 +189,26 @@ function InventoryPage() {
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }))
+  }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setError('')
+
+    try {
+      const data = await uploadImage(file)
+      setForm((current) => ({
+        ...current,
+        imageUrl: data.url,
+      }))
+    } catch (requestError) {
+      setError(getApiErrorMessage(requestError, 'Failed to upload image.'))
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleFormPurchasedToggle = () => {
@@ -355,12 +377,35 @@ function InventoryPage() {
             required
           />
 
-          <Input
-            name="imageUrl"
-            value={form.imageUrl || ''}
-            onChange={handleFormChange}
-            placeholder="Optional Image URL (transparent PNG blends best)"
-          />
+          <div className="space-y-2">
+            <Input
+              name="imageUrl"
+              value={form.imageUrl || ''}
+              onChange={handleFormChange}
+              placeholder="Optional Image URL (transparent PNG blends best)"
+            />
+            <div className="flex items-center gap-3">
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+                <span>Upload File</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+              {uploading && <span className="text-xs text-slate-500 animate-pulse">Uploading...</span>}
+              {form.imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setForm((c) => ({ ...c, imageUrl: '' }))}
+                  className="text-xs font-medium text-rose-600 hover:text-rose-800"
+                >
+                  Clear image
+                </button>
+              )}
+            </div>
+          </div>
 
           <Button
             type="button"
@@ -502,7 +547,7 @@ function InventoryPage() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-4">
                     <img
-                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                       alt={item.name}
                       className="h-16 w-16 rounded-2xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                       style={{ mixBlendMode: 'multiply' }}

@@ -5,7 +5,7 @@ import Card from '../components/ui/Card'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import { useToast } from '../components/ui/toast'
 import { getShoppingList, updateGrocery } from '../services/groceryService'
-import { getFallbackImage } from '../utils/imageFallback'
+import { getFallbackImage, resolveImageUrl } from '../utils/imageFallback'
 
 const t = (text) => text
 
@@ -198,7 +198,7 @@ function ShoppingListPage() {
                 >
                   <div className="flex items-center gap-4">
                     <img
-                      src={item.imageUrl || getFallbackImage(item.name, item.category)}
+                      src={resolveImageUrl(item.imageUrl, item.name, item.category)}
                       alt={item.name}
                       className="h-12 w-12 rounded-xl object-cover bg-white/60 border border-slate-200/50 shadow-sm"
                       style={{ mixBlendMode: 'multiply' }}

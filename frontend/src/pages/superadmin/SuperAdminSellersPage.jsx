@@ -47,7 +47,7 @@ function SuperAdminSellersPage() {
             activeProductCount: products.filter((product) => product.active).length,
             lowStockCount: products.filter((product) => product.active && Number(product.stock) <= 3).length,
             orderCount: orders.length,
-            pendingOrderCount: orders.filter((order) => order.status === 'PENDING').length,
+            pendingOrderCount: orders.filter((order) => order.status === 'DELIVERING').length,
             deliveredOrderCount: deliveredOrders.length,
             revenue,
           }
@@ -56,7 +56,7 @@ function SuperAdminSellersPage() {
   )
 
   const totalRevenue = sellerRows.reduce((total, seller) => total + seller.revenue, 0)
-  const pendingOrders = sellerOrders.filter((order) => order.status === 'PENDING')
+  const pendingOrders = sellerOrders.filter((order) => order.status === 'DELIVERING')
   const topSeller = [...sellerRows].sort((first, second) => second.revenue - first.revenue)[0]
   const mostLoadedSeller = [...sellerRows].sort(
     (first, second) => second.pendingOrderCount - first.pendingOrderCount,
@@ -65,8 +65,8 @@ function SuperAdminSellersPage() {
     pendingOrders.length > 0 && {
       id: 'pending-orders',
       tone: 'amber',
-      title: `${pendingOrders.length} pending seller order(s)`,
-      message: 'These orders are waiting for seller action.',
+      title: `${pendingOrders.length} delivering seller order(s)`,
+      message: 'These orders are in progress and being delivered.',
       meta: 'Needs action',
     },
     topSeller?.revenue > 0 && {
@@ -80,7 +80,7 @@ function SuperAdminSellersPage() {
       id: 'seller-pressure',
       tone: 'rose',
       title: `${mostLoadedSeller.username} has order pressure`,
-      message: `${mostLoadedSeller.pendingOrderCount} pending order(s) need attention.`,
+      message: `${mostLoadedSeller.pendingOrderCount} delivering order(s) in progress.`,
       meta: 'Order queue',
     },
     sellerProducts.some((product) => product.active && Number(product.stock) <= 3) && {
@@ -95,7 +95,7 @@ function SuperAdminSellersPage() {
   const stats = [
     { label: 'Sellers', value: sellerRows.length, icon: Store, accent: 'sky', helper: 'Active seller accounts' },
     { label: 'Products', value: sellerProducts.length, icon: Boxes, accent: 'violet', helper: 'Global seller listings' },
-    { label: 'Pending Orders', value: pendingOrders.length, icon: Clock3, accent: 'amber', helper: 'Needs seller action' },
+    { label: 'Delivering Orders', value: pendingOrders.length, icon: Clock3, accent: 'amber', helper: 'Orders being delivered' },
     {
       label: 'Revenue',
       value: `Rs ${Math.round(totalRevenue).toLocaleString('en-IN')}`,
@@ -203,7 +203,7 @@ function SuperAdminSellersPage() {
                     Orders: <strong className="text-slate-950">{seller.orderCount}</strong>
                   </span>
                   <span className="rounded-2xl bg-white px-4 py-3 text-slate-600">
-                    Pending: <strong className="text-slate-950">{seller.pendingOrderCount}</strong>
+                    Delivering: <strong className="text-slate-950">{seller.pendingOrderCount}</strong>
                   </span>
                   <span className="rounded-2xl bg-white px-4 py-3 text-slate-600">
                     Revenue:{' '}

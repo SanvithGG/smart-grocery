@@ -137,12 +137,13 @@ public class AuthService {
 
     public AuthResponse loginAdmin(AuthRequest request) {
         User user = authenticate(request);
+        UserRole role = resolveRole(user);
 
-        if (resolveRole(user) != UserRole.SUPER_ADMIN) {
+        if (role != UserRole.SUPER_ADMIN && role != UserRole.ADMIN) {
             throw new UnauthorizedException("Admin access is required");
         }
 
-        return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), resolveRole(user).name());
+        return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername(), role.name());
     }
 
     private GoogleIdToken.Payload verifyGoogleCredential(String credential) {
@@ -223,15 +224,13 @@ public class AuthService {
         List<User> matches = userRepository.findAllByEmailIgnoreCase(email);
 
         return matches.stream()
-                .max(Comparator.comparing((User user) -> resolveRole(user) == UserRole.SUPER_ADMIN)
-                        .thenComparing(User::getId));
+                .max(Comparator.comparing((User user) -> {
+                    UserRole r = resolveRole(user);
+                    return r == UserRole.SUPER_ADMIN || r == UserRole.ADMIN;
+                }).thenComparing(User::getId));
     }
 
     private UserRole resolveRole(User user) {
-        if (user.getRole() == UserRole.ADMIN) {
-            return UserRole.SUPER_ADMIN;
-        }
-
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }
