@@ -9,5 +9,16 @@ export default defineConfig(async () => {
 
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            react: ['react', 'react-dom', 'react-router-dom'],
+            charts: ['recharts'],
+            vendor: ['axios', 'lucide-react'],
+          },
+        },
+      },
+    },
   }
 })
