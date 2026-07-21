@@ -445,7 +445,8 @@ public class GroceryService {
                 buildShoppingPriority(item, reasons, today),
                 item.getQuantity(),
                 item.isPurchased(),
-                item.getExpiryDate()
+                item.getExpiryDate(),
+                null
         );
     }
 
@@ -544,7 +545,8 @@ public class GroceryService {
                 resolveCatalogPrice(item.getName(), item.getCategory()),
                 DEFAULT_CURRENCY,
                 availableQuantity,
-                resolveAvailability(availableQuantity)
+                resolveAvailability(availableQuantity),
+                item.getImageUrl()
         );
     }
 

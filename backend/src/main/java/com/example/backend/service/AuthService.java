@@ -224,7 +224,7 @@ public class AuthService {
         List<User> matches = userRepository.findAllByEmailIgnoreCase(email);
 
         return matches.stream()
-                .max(Comparator.comparing((User user) -> {
+                .max(Comparator.<User, Boolean>comparing(user -> {
                     UserRole r = resolveRole(user);
                     return r == UserRole.SUPER_ADMIN || r == UserRole.ADMIN;
                 }).thenComparing((User user) -> user.getId()));
