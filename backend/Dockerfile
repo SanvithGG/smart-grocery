@@ -10,4 +10,4 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080 10000
-ENTRYPOINT ["java", "-Xmx384m", "-Xms192m", "-XX:+UseSerialGC", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Xmx384m -Xms192m -XX:+UseSerialGC -Dserver.port=${PORT:-8080} -jar app.jar"]
