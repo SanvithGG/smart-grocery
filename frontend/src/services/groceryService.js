@@ -94,3 +94,14 @@ export async function parseRecipe(recipeText) {
   const { data } = await api.post('/api/recipe/parse', { recipeText })
   return data
 }
+
+export async function uploadImage(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post('/api/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return data
+}
