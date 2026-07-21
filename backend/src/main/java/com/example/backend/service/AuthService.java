@@ -224,14 +224,10 @@ public class AuthService {
 
         return matches.stream()
                 .max(Comparator.comparing((User user) -> resolveRole(user) == UserRole.SUPER_ADMIN)
-                        .thenComparing(User::getId));
+                        .thenComparing(user -> user.getId()));
     }
 
     private UserRole resolveRole(User user) {
-        if (user.getRole() == UserRole.ADMIN) {
-            return UserRole.SUPER_ADMIN;
-        }
-
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 }

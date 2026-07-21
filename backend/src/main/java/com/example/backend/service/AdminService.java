@@ -60,13 +60,13 @@ public class AdminService {
         List<User> users = userRepository.findAll();
         List<GroceryItem> products = groceryRepository.findAll();
 
-        long purchasedProducts = products.stream().filter(GroceryItem::isPurchased).count();
+        long purchasedProducts = products.stream().filter(item -> item.isPurchased()).count();
         long totalCategories = products.stream()
-                .map(GroceryItem::getCategory)
+                .map(item -> item.getCategory())
                 .filter(Objects::nonNull)
-                .map(String::trim)
+                .map(str -> str.trim())
                 .filter(category -> !category.isBlank())
-                .map(String::toLowerCase)
+                .map(str -> str.toLowerCase())
                 .distinct()
                 .count();
         long lowStockProducts = products.stream()
@@ -88,14 +88,14 @@ public class AdminService {
         List<GroceryItem> products = groceryRepository.findAll();
 
         return userRepository.findAll().stream()
-                .sorted(Comparator.comparing(User::getUsername, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing((User user) -> user.getUsername(), String.CASE_INSENSITIVE_ORDER))
                 .map(user -> {
                     long totalItems = products.stream()
                             .filter(item -> item.getUser() != null && item.getUser().getId() == user.getId())
                             .count();
                     long purchasedItems = products.stream()
                             .filter(item -> item.getUser() != null && item.getUser().getId() == user.getId())
-                            .filter(GroceryItem::isPurchased)
+                            .filter(item -> item.isPurchased())
                             .count();
 
                     return new AdminUserSummaryResponse(
@@ -117,10 +117,6 @@ public class AdminService {
 
         UserRole nextRole = parseRole(request.getRole());
 
-        if (nextRole == UserRole.ADMIN) {
-            nextRole = UserRole.SUPER_ADMIN;
-        }
-
         if (isSuperAdmin(user) && nextRole != UserRole.SUPER_ADMIN
                 && countSuperAdmins() <= 1) {
             throw new ConflictException("At least one super admin account must remain");
@@ -134,7 +130,7 @@ public class AdminService {
                 .count();
         long purchasedItems = groceryRepository.findAll().stream()
                 .filter(item -> item.getUser() != null && item.getUser().getId() == user.getId())
-                .filter(GroceryItem::isPurchased)
+                .filter(item -> item.isPurchased())
                 .count();
 
         return new AdminUserSummaryResponse(
@@ -163,8 +159,8 @@ public class AdminService {
 
     public List<AdminProductResponse> getProducts() {
         return groceryRepository.findAll().stream()
-                .sorted(Comparator.comparing(GroceryItem::getCategory, String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(GroceryItem::getName, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing((GroceryItem item) -> item.getCategory(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(item -> item.getName(), String.CASE_INSENSITIVE_ORDER))
                 .map(this::mapProduct)
                 .toList();
     }
@@ -217,8 +213,8 @@ public class AdminService {
     public List<AdminProductResponse> getPurchaseQueue() {
         return groceryRepository.findAll().stream()
                 .filter(item -> !item.isPurchased())
-                .sorted(Comparator.comparing(GroceryItem::getCategory, String.CASE_INSENSITIVE_ORDER)
-                        .thenComparing(GroceryItem::getName, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing((GroceryItem item) -> item.getCategory(), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(item -> item.getName(), String.CASE_INSENSITIVE_ORDER))
                 .map(this::mapProduct)
                 .toList();
     }
@@ -250,9 +246,9 @@ public class AdminService {
     public AdminReportsResponse getReports() {
         List<GroceryItem> products = groceryRepository.findAll();
         List<AdminCategoryResponse> breakdown = buildCategoryBreakdown(products);
-        long purchasedProducts = products.stream().filter(GroceryItem::isPurchased).count();
+        long purchasedProducts = products.stream().filter(item -> item.isPurchased()).count();
         long expiringSoonProducts = products.stream()
-                .filter(GroceryItem::isPurchased)
+                .filter(item -> item.isPurchased())
                 .filter(item -> item.getExpiryDate() != null)
                 .filter(item -> ChronoUnit.DAYS.between(LocalDate.now(), item.getExpiryDate()) <= 3)
                 .count();
@@ -263,7 +259,7 @@ public class AdminService {
                 purchasedProducts,
                 products.size() - purchasedProducts,
                 expiringSoonProducts,
-                breakdown.stream().sorted(Comparator.comparingLong(AdminCategoryResponse::getTotalProducts).reversed())
+                breakdown.stream().sorted(Comparator.comparingLong((AdminCategoryResponse r) -> r.getTotalProducts()).reversed())
                         .limit(5)
                         .toList(),
                 breakdown
@@ -277,7 +273,7 @@ public class AdminService {
 
         return grouped.entrySet().stream()
                 .map(entry -> {
-                    long purchased = entry.getValue().stream().filter(GroceryItem::isPurchased).count();
+                    long purchased = entry.getValue().stream().filter(item -> item.isPurchased()).count();
                     return new AdminCategoryResponse(
                             entry.getKey(),
                             entry.getValue().size(),
@@ -285,7 +281,7 @@ public class AdminService {
                             entry.getValue().size() - purchased
                     );
                 })
-                .sorted(Comparator.comparing(AdminCategoryResponse::getName, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing((AdminCategoryResponse r) -> r.getName(), String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
 
@@ -338,10 +334,6 @@ public class AdminService {
     }
 
     private UserRole resolveRole(User user) {
-        if (user.getRole() == UserRole.ADMIN) {
-            return UserRole.SUPER_ADMIN;
-        }
-
         return user.getRole() == null ? UserRole.USER : user.getRole();
     }
 

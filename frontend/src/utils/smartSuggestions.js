@@ -1,3 +1,5 @@
+import { normalizeKey } from './expiry'
+
 const DAY_IN_MS = 24 * 60 * 60 * 1000
 
 export const categoryRules = [
@@ -14,43 +16,7 @@ export const categoryRules = [
 
 const fallbackCategories = categoryRules.map((rule) => rule.category)
 
-const itemPriceSuggestions = {
-  milk: 32,
-  bread: 28,
-  eggs: 72,
-  rice: 95,
-  'wheat flour': 54,
-  apples: 140,
-  bananas: 48,
-  tomatoes: 36,
-  onions: 40,
-  potatoes: 34,
-  'cooking oil': 165,
-  salt: 24,
-  sugar: 46,
-  tea: 120,
-  coffee: 185,
-  biscuits: 30,
-  paneer: 85,
-  yogurt: 42,
-  spinach: 25,
-  soap: 38,
-  detergent: 110,
-}
-
-const categoryPriceSuggestions = {
-  dairy: 60,
-  bakery: 35,
-  fruits: 90,
-  vegetables: 40,
-  grains: 80,
-  essentials: 75,
-  beverages: 110,
-  snacks: 45,
-  household: 95,
-}
-
-export const normalizeSmartKey = (value) => (value || '').trim().toLowerCase()
+export const normalizeSmartKey = normalizeKey
 
 const daysUntil = (dateValue) => {
   if (!dateValue) {
@@ -98,7 +64,7 @@ export const getCategorySuggestions = (productName) => {
   return [...matchedCategories, ...fallbackCategories.filter((category) => !matchedCategories.includes(category))]
 }
 
-export const getPriceSuggestion = (name, category) => {
+export const getPriceSuggestion = (name, category, rules) => {
   const normalizedName = normalizeSmartKey(name)
   const normalizedCategory = normalizeSmartKey(category)
 
@@ -107,9 +73,9 @@ export const getPriceSuggestion = (name, category) => {
   }
 
   return String(
-    itemPriceSuggestions[normalizedName] ??
-      categoryPriceSuggestions[normalizedCategory] ??
-      99,
+    rules?.price?.[normalizedName] ??
+    rules?.price?.[normalizedCategory] ??
+    99
   )
 }
 
@@ -148,7 +114,7 @@ export const buildHomeSmartBuySuggestions = (items = [], sellerProducts = []) =>
           : `${item.name} is running low in your pending list.`,
         meta: match ? `Rs ${Math.round(Number(match.price) || 0)}` : `Qty ${item.quantity}`,
         actionLabel: match ? 'Open seller market' : 'Open buy queue',
-        actionTarget: match ? 'seller-market' : 'shopping-list',
+        actionTarget: match ? 'shopping-list' : 'shopping-list',
       }
     })
 

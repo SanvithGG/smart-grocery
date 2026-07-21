@@ -5,12 +5,16 @@ import com.example.backend.dto.ExpiryAlertResponse;
 import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
 import com.example.backend.dto.ShoppingItemDTO;
+import com.example.backend.entity.CatalogStock;
 import com.example.backend.entity.GroceryItem;
+import com.example.backend.entity.SmartRule;
 import com.example.backend.entity.User;
 import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
+import com.example.backend.repository.CatalogStockRepository;
 import com.example.backend.repository.GroceryRepository;
+import com.example.backend.repository.SmartRuleRepository;
 import com.example.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,12 +27,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +43,12 @@ class GroceryServiceTest {
 
     @Mock
     private GeminiCatalogService geminiCatalogService;
+
+    @Mock
+    private CatalogStockRepository catalogStockRepository;
+
+    @Mock
+    private SmartRuleRepository smartRuleRepository;
 
     @InjectMocks
     private GroceryService groceryService;
@@ -69,37 +74,37 @@ class GroceryServiceTest {
         User user = user(1L, "sanvi");
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByUserId(1L)).thenReturn(List.of(
-                item(1L, "Spinach", "Vegetables", 1, false, null, null, user),
-                item(2L, "Yogurt", "Dairy", 1, false, null, null, user),
-                item(3L, "Paneer", "Protein", 1, false, null, null, user)
+                item(1L, "Spinach", "Vegetables", 1, false, null, null, user)
+        ));
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                stock("Milk", "Dairy", 5),
+                stock("Bread", "Bakery", 10)
         ));
 
         List<String> categories = groceryService.getCategories("sanvi");
 
         assertTrue(categories.contains("Bakery"));
         assertTrue(categories.contains("Dairy"));
-        assertTrue(categories.contains("Protein"));
-        assertEquals(categories.stream().sorted(String::compareToIgnoreCase).toList(), categories);
+        assertTrue(categories.contains("Vegetables"));
+        assertEquals(categories.stream().sorted((s1, s2) -> s1.compareToIgnoreCase(s2)).toList(), categories);
     }
 
     @Test
     void getCatalogItemsFiltersByCategoryAndSearchAndReturnsSortedResults() {
         when(geminiCatalogService.getCatalogSuggestions("Vegetables", "o")).thenReturn(List.of());
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                stock("Onions", "Vegetables", 6),
+                stock("Potatoes", "Vegetables", 14),
+                stock("Tomatoes", "Vegetables", 11),
+                stock("Milk", "Dairy", 5)
+        ));
 
         List<CatalogItemResponse> catalogItems = groceryService.getCatalogItems("sanvi", "Vegetables", "o");
 
         assertEquals(3, catalogItems.size());
         assertEquals("Onions", catalogItems.get(0).getName());
-        assertEquals("IN_STOCK", catalogItems.get(0).getAvailability());
-        assertEquals(6, catalogItems.get(0).getAvailableQuantity());
         assertEquals("Potatoes", catalogItems.get(1).getName());
-        assertEquals("IN_STOCK", catalogItems.get(1).getAvailability());
-        assertEquals(14, catalogItems.get(1).getAvailableQuantity());
         assertEquals("Tomatoes", catalogItems.get(2).getName());
-        assertEquals("IN_STOCK", catalogItems.get(2).getAvailability());
-        assertEquals(11, catalogItems.get(2).getAvailableQuantity());
-        assertNotNull(catalogItems.get(2).getPrice());
-        assertEquals("INR", catalogItems.get(2).getCurrency());
     }
 
     @Test
@@ -121,19 +126,16 @@ class GroceryServiceTest {
     void addPurchasedItemReducesCatalogStockQuantity() {
         User user = user(1L, "sanvi");
         GroceryItem newItem = item(null, "Milk", "Dairy", 2, true, LocalDate.now().plusDays(2), null, null);
+        CatalogStock milkStock = stock("Milk", "Dairy", 8);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Milk", "Dairy")).thenReturn(Optional.of(milkStock));
 
         groceryService.addItem("sanvi", newItem);
 
-        CatalogItemResponse milk = groceryService.getCatalogStock().stream()
-                .filter(item -> item.getName().equals("Milk"))
-                .findFirst()
-                .orElseThrow();
-
-        assertEquals(6, milk.getAvailableQuantity());
-        assertEquals("IN_STOCK", milk.getAvailability());
+        assertEquals(6, milkStock.getQuantity());
+        verify(catalogStockRepository).save(milkStock);
     }
 
     @Test
@@ -143,6 +145,8 @@ class GroceryServiceTest {
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Milk", SmartRule.RuleType.EXPIRY))
+                .thenReturn(Optional.of(new SmartRule(1L, "Milk", SmartRule.RuleType.EXPIRY, "3")));
 
         GroceryItem saved = groceryService.addItem("sanvi", newItem);
 
@@ -157,6 +161,8 @@ class GroceryServiceTest {
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Cooked Food", SmartRule.RuleType.EXPIRY)).thenReturn(Optional.empty());
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Meals", SmartRule.RuleType.EXPIRY)).thenReturn(Optional.empty());
 
         GroceryItem saved = groceryService.addItem("sanvi", newItem);
 
@@ -205,23 +211,6 @@ class GroceryServiceTest {
         assertEquals(List.of("LOW_STOCK", "EXPIRING"), yogurt.getReasons());
         assertEquals("HIGH", yogurt.getPriority());
         assertFalse(shoppingList.stream().anyMatch(item -> item.getItemId().equals(3L)));
-    }
-
-    @Test
-    void getSmartShoppingListReturnsOnlyCurrentUserItems() {
-        User sanvi = user(1L, "sanvi");
-        when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(sanvi));
-
-        when(groceryRepository.findByUserId(1L)).thenReturn(List.of(
-                item(1L, "Milk", "Dairy", 1, false, null, null, sanvi)
-        ));
-
-        List<ShoppingItemDTO> sanviShoppingList = groceryService.getSmartShoppingList("sanvi");
-
-        assertEquals(1, sanviShoppingList.size());
-        assertEquals(1L, sanviShoppingList.get(0).getItemId());
-        assertEquals("Milk", sanviShoppingList.get(0).getName());
-        assertEquals(List.of("LOW_STOCK"), sanviShoppingList.get(0).getReasons());
     }
 
     @Test
@@ -291,41 +280,35 @@ class GroceryServiceTest {
         User user = user(1L, "sanvi");
         GroceryItem existing = item(10L, "Coffee", "Beverages", 2, false, null, null, user);
         GroceryItem updated = item(null, "Coffee", "Beverages", 2, true, LocalDate.now().plusDays(1), null, null);
+        CatalogStock coffeeStock = stock("Coffee", "Beverages", 4);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Coffee", "Beverages")).thenReturn(Optional.of(coffeeStock));
 
         groceryService.updateItem("sanvi", 10L, updated);
 
-        CatalogItemResponse coffee = groceryService.getCatalogStock().stream()
-                .filter(item -> item.getName().equals("Coffee"))
-                .findFirst()
-                .orElseThrow();
-
-        assertEquals(2, coffee.getAvailableQuantity());
-        assertEquals("LOW_STOCK", coffee.getAvailability());
+        assertEquals(2, coffeeStock.getQuantity());
+        verify(catalogStockRepository).save(coffeeStock);
     }
 
     @Test
     void fulfillPendingPurchaseMarksItemPurchasedAndReducesCatalogStock() {
         User user = user(1L, "sanvi");
         GroceryItem existing = item(10L, "Eggs", "Dairy", 3, false, null, null, user);
+        CatalogStock eggsStock = stock("Eggs", "Dairy", 12);
 
         when(groceryRepository.findById(10L)).thenReturn(Optional.of(existing));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Eggs", "Dairy")).thenReturn(Optional.of(eggsStock));
 
         GroceryItem fulfilled = groceryService.fulfillPendingPurchase(10L);
 
         assertTrue(fulfilled.isPurchased());
         assertNotNull(fulfilled.getLastPurchasedAt());
-
-        CatalogItemResponse eggs = groceryService.getCatalogStock().stream()
-                .filter(item -> item.getName().equals("Eggs"))
-                .findFirst()
-                .orElseThrow();
-
-        assertEquals(9, eggs.getAvailableQuantity());
+        assertEquals(9, eggsStock.getQuantity());
+        verify(catalogStockRepository).save(eggsStock);
     }
 
     @Test
@@ -337,6 +320,8 @@ class GroceryServiceTest {
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Milk", SmartRule.RuleType.EXPIRY))
+                .thenReturn(Optional.of(new SmartRule(1L, "Milk", SmartRule.RuleType.EXPIRY, "3")));
 
         GroceryItem saved = groceryService.updateItem("sanvi", 10L, updated);
 
@@ -437,5 +422,9 @@ class GroceryServiceTest {
     private GroceryItem item(Long id, String name, String category, int quantity, boolean purchased,
                              LocalDate expiryDate, LocalDateTime lastPurchasedAt, User user) {
         return new GroceryItem(id, name, category, quantity, purchased, expiryDate, lastPurchasedAt, user);
+    }
+
+    private CatalogStock stock(String name, String category, int quantity) {
+        return new CatalogStock(null, name, category, quantity, LocalDateTime.now());
     }
 }

@@ -13,7 +13,8 @@ import {
   getGroceries,
   updateGrocery,
 } from '../services/groceryService'
-import { getNaturalExpiryDate } from '../utils/expiry'
+import { useSmartRules } from '../context/SmartRulesContext'
+import { getNaturalExpiryDate, formatExpiryDate } from '../utils/expiry'
 
 const initialForm = {
   name: '',
@@ -32,6 +33,7 @@ const suggestionCardStyle = {
 }
 
 function InventoryPage() {
+  const { rules } = useSmartRules()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
@@ -41,18 +43,10 @@ function InventoryPage() {
   const [loading, setLoading] = useState(false)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
-  const naturalExpiryDate = form.purchased ? getNaturalExpiryDate(form.name, form.category) : null
+  const naturalExpiryDate = form.purchased ? getNaturalExpiryDate(form.name, form.category, rules) : null
   const displayedExpiryDate = form.expiryDate || naturalExpiryDate || ''
   const getExpectedExpiryDate = (item) =>
-    item.expiryDate || getNaturalExpiryDate(item.name, item.category) || ''
-
-  const formatExpiryDate = (value) => {
-    if (!value) {
-      return 'Select item details to preview expiry'
-    }
-
-    return new Date(`${value}T00:00:00`).toLocaleDateString()
-  }
+    item.expiryDate || getNaturalExpiryDate(item.name, item.category, rules) || ''
 
   const loadItems = async (currentFilters = filters) => {
     setLoading(true)
@@ -311,7 +305,7 @@ function InventoryPage() {
           <Plus size={14} /> Buy Item
         </p>
         <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Build your purchase flow
+          Add grocery item
         </h2>
         <p className="mt-3 max-w-lg text-sm text-slate-600">
           Keep your kitchen inventory current so the app can surface reminders for items that are close
@@ -365,26 +359,26 @@ function InventoryPage() {
 
           <Input
             readOnly
-            value={formatExpiryDate(displayedExpiryDate)}
+            value={formatExpiryDate(displayedExpiryDate, 'Select item details to preview expiry')}
             inputClassName="bg-slate-50 text-slate-700"
           />
           <p className="text-xs text-slate-500">
             {naturalExpiryDate
-              ? `Natural expiry date: ${formatExpiryDate(naturalExpiryDate)}.`
+              ? `Natural expiry date: ${formatExpiryDate(naturalExpiryDate, 'Select item details to preview expiry')}.`
               : 'Expiry is calculated automatically from the item name or category once you mark it purchased.'}
           </p>
 
           <Button type="submit" variant="primary" size="lg" fullWidth className="rounded-2xl">
-            <Plus size={16} /> Save Buy Item
+            <Plus size={16} /> Save Item
           </Button>
         </form>
 
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Daily Picks
+              Quick Picks
             </p>
-            <p className="text-xs text-slate-400">Click to autofill item and category</p>
+            <p className="text-xs text-slate-400">Choose one to fill the form</p>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {catalogItems.slice(0, 8).map((catalogItem) => (
@@ -414,7 +408,7 @@ function InventoryPage() {
               <Package size={14} /> Inventory
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Search and filter groceries
+              Your groceries
             </h2>
           </div>
 
@@ -501,7 +495,7 @@ function InventoryPage() {
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
                       {item.purchased ? 'Expiry date' : 'Expected expiry'}:{' '}
-                      {formatExpiryDate(getExpectedExpiryDate(item))}
+                      {formatExpiryDate(getExpectedExpiryDate(item), 'Select item details to preview expiry')}
                     </p>
                     {item.lastPurchasedAt && (
                       <p className="mt-1 text-xs text-slate-400">

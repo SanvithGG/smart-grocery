@@ -143,7 +143,7 @@ class AuthServiceTest {
         request.setPassword("Admin@123");
 
         User regularUser = new User(1L, "regular", "admin@gmail.com", "user-password", UserRole.USER);
-        User adminUser = new User(2L, "admin", "admin@gmail.com", "admin-password", UserRole.ADMIN);
+        User adminUser = new User(2L, "admin", "admin@gmail.com", "admin-password", UserRole.SUPER_ADMIN);
 
         when(userRepository.findByUsername("admin@gmail.com")).thenReturn(Optional.empty());
         when(userRepository.findAllByEmailIgnoreCase("admin@gmail.com")).thenReturn(List.of(regularUser, adminUser));

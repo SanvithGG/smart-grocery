@@ -20,6 +20,21 @@ export async function getSellerProducts() {
   return data
 }
 
+export async function getPublicCatalog(params) {
+  const { data } = await api.get('/api/public/catalog', { params })
+  return data
+}
+
+export async function getPublicCategories() {
+  const { data } = await api.get('/api/public/categories')
+  return data
+}
+
+export async function getPublicSellerProducts() {
+  const { data } = await api.get('/api/public/seller-products')
+  return data
+}
+
 export async function createSellerOrder(productId, payload) {
   const { data } = await api.post(`/api/grocery/seller-products/${productId}/order`, payload)
   return data
@@ -67,5 +82,10 @@ export async function acknowledgeExpiryAlert(itemId) {
 
 export async function getShoppingList() {
   const { data } = await api.get('/api/grocery/shopping-list')
+  return data
+}
+
+export async function getSmartRules() {
+  const { data } = await api.get('/api/grocery/smart-rules')
   return data
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ShoppingCart, AlertTriangle, Package, Lightbulb, Clock } from 'lucide-react'
 import { getApiErrorMessage } from '../api/client'
@@ -6,6 +6,9 @@ import Button from '../components/ui/Button'
 import { SkeletonCard } from '../components/ui/Skeleton'
 import SmartInsightCard from '../components/ui/SmartInsightCard'
 import { useToast } from '../components/ui/toast'
+
+const DashboardBarChart = React.lazy(() => import('../components/charts/DashboardBarChart'))
+const DashboardLineChart = React.lazy(() => import('../components/charts/DashboardLineChart'))
 import {
   acknowledgeExpiryAlert,
   getExpiryAlerts,
@@ -271,6 +274,29 @@ function DashboardPage() {
     sellerProducts,
     myItems,
   })
+
+  const categoryBreakdown = myItems.reduce((acc, item) => {
+    if (item.purchased) {
+      const cat = item.category || 'Other'
+      acc[cat] = (acc[cat] || 0) + (Number(item.quantity) || 1)
+    }
+    return acc
+  }, {})
+  const categoryChartData = Object.entries(categoryBreakdown).map(([name, value]) => ({
+    label: name,
+    value: value
+  })).sort((a, b) => b.value - a.value)
+
+  const expiryUrgency = expiryAlerts.reduce((acc, alert) => {
+    const severity = alert.severity || 'SOON'
+    acc[severity] = (acc[severity] || 0) + 1
+    return acc
+  }, { OVERDUE: 0, TODAY: 0, SOON: 0 })
+  const expiryChartData = [
+    { label: 'Overdue', value: expiryUrgency.OVERDUE },
+    { label: 'Expires Today', value: expiryUrgency.TODAY },
+    { label: 'Expires Soon', value: expiryUrgency.SOON },
+  ]
 
   const refreshDashboard = async () => {
     const data = await fetchDashboardData()
@@ -546,7 +572,7 @@ function DashboardPage() {
             <LayoutDashboard size={16} /> Dashboard
           </p>
           <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight">
-            See the grocery list, stock pressure, and next actions in one place.
+            Dashboard at a glance.
           </h2>
           <p className="mt-4 max-w-xl text-sm text-slate-200 sm:text-base">
             This view is now focused on operational data. Browse and quickly buy items from the
@@ -562,7 +588,7 @@ function DashboardPage() {
               Open Inventory
             </Link>
             <Link
-              to="/"
+              to="/home"
               className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               Back to Home
@@ -616,6 +642,53 @@ function DashboardPage() {
               </article>
             ))}
       </section>
+
+      {/* Visual Analytics */}
+      {!loading && myItems.length > 0 && (
+        <Suspense fallback={
+          <div className="rounded-[32px] border border-white/60 bg-white/80 p-8 text-center text-sm font-medium text-slate-500 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+            <span className="animate-pulse">Loading visual stock analytics...</span>
+          </div>
+        }>
+          <section className="grid gap-6 md:grid-cols-2">
+            <article className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
+                Stock Distribution
+              </p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-950">
+                Purchased items by category
+              </h3>
+              <div className="mt-6 h-64">
+                {categoryChartData.length > 0 ? (
+                  <DashboardBarChart data={categoryChartData} color="#0284c7" />
+                ) : (
+                  <p className="flex h-full items-center justify-center text-sm text-slate-400">
+                    No purchased inventory to display.
+                  </p>
+                )}
+              </div>
+            </article>
+
+            <article className="rounded-[32px] border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-700">
+                Expiry Alert Severity
+              </p>
+              <h3 className="mt-2 text-xl font-semibold text-slate-950">
+                Urgency mix of kitchen reminders
+              </h3>
+              <div className="mt-6 h-64">
+                {expiryAlerts.length > 0 ? (
+                  <DashboardLineChart data={expiryChartData} color="#f59e0b" />
+                ) : (
+                  <p className="flex h-full items-center justify-center text-sm text-slate-400">
+                    No active expiry alerts.
+                  </p>
+                )}
+              </div>
+            </article>
+          </section>
+        </Suspense>
+      )}
 
       {error && (
         <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">

@@ -7,6 +7,7 @@ import Input from '../../components/ui/Input'
 import { useToast } from '../../components/ui/toast'
 import { sellerNavigationItems } from '../../data/sellerNavigation'
 import RoleDashboardLayout from '../../layouts/RoleDashboardLayout'
+import { useSmartRules } from '../../context/SmartRulesContext'
 import { getCategorySuggestions, getPriceSuggestion } from '../../utils/smartSuggestions'
 import { getNaturalExpiryDate } from '../../utils/expiry'
 import {
@@ -27,6 +28,7 @@ const emptyForm = {
 
 function SellerProductsPage() {
   const toast = useToast()
+  const { rules } = useSmartRules()
   const [products, setProducts] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
@@ -35,8 +37,8 @@ function SellerProductsPage() {
   const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null)
   const categorySuggestions = getCategorySuggestions(form.name)
   const topCategorySuggestion = categorySuggestions[0]
-  const aiExpirySuggestion = getNaturalExpiryDate(form.name, form.category)
-  const aiPriceSuggestion = getPriceSuggestion(form.name, form.category)
+  const aiExpirySuggestion = getNaturalExpiryDate(form.name, form.category, rules)
+  const aiPriceSuggestion = getPriceSuggestion(form.name, form.category, rules)
 
   const loadProducts = async () => {
     try {
@@ -63,11 +65,11 @@ function SellerProductsPage() {
       }
 
       if ((name === 'name' || name === 'category') && !current.expiryDate) {
-        nextForm.expiryDate = getNaturalExpiryDate(nextForm.name, nextForm.category) || ''
+        nextForm.expiryDate = getNaturalExpiryDate(nextForm.name, nextForm.category, rules) || ''
       }
 
       if ((name === 'name' || name === 'category') && !current.price) {
-        nextForm.price = getPriceSuggestion(nextForm.name, nextForm.category)
+        nextForm.price = getPriceSuggestion(nextForm.name, nextForm.category, rules)
       }
 
       return nextForm
@@ -84,9 +86,9 @@ function SellerProductsPage() {
     setForm({
       name: product.name,
       category: product.category,
-      price: String(product.price || getPriceSuggestion(product.name, product.category)),
+      price: String(product.price || getPriceSuggestion(product.name, product.category, rules)),
       stock: String(product.stock),
-      expiryDate: product.expiryDate || getNaturalExpiryDate(product.name, product.category) || '',
+      expiryDate: product.expiryDate || getNaturalExpiryDate(product.name, product.category, rules) || '',
       active: product.active,
     })
   }

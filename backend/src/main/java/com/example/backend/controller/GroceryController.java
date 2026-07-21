@@ -76,6 +76,11 @@ public class GroceryController {
         return groceryService.getSmartShoppingList(principal.getName());
     }
 
+    @GetMapping("/smart-rules")
+    public List<com.example.backend.entity.SmartRule> getSmartRules() {
+        return groceryService.getSmartRules();
+    }
+
     @GetMapping("/recommendations")
     public List<RecommendationResponse> getRecommendations(Principal principal) {
         return groceryService.getRecommendations(principal.getName());

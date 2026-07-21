@@ -30,8 +30,7 @@ const getPriorityBadgeClasses = (priority) => {
 }
 
 const shoppingHeroStyle = {
-  background:
-    'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(255,255,255,0.92) 55%, rgba(14,165,233,0.14))',
+  background: '#ffffff',
 }
 
 function ShoppingListPage() {
@@ -135,7 +134,7 @@ function ShoppingListPage() {
           Buy Queue
         </p>
         <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight text-slate-950">
-          Auto-built from low stock and near-expiry items.
+          Buy queue
         </h2>
         <p className="mt-4 max-w-2xl text-sm text-slate-600 sm:text-base">
           Items show here when quantity is low or expiry is within the next 2 days. Mark them as
@@ -153,7 +152,7 @@ function ShoppingListPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Buy Suggestions
+              Suggestions
               </p>
             <p className="mt-2 text-sm text-slate-500">
               {visibleItems.length} active suggestions

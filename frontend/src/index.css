@@ -20,12 +20,12 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root {
   min-height: 100vh;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 @keyframes fadeIn {
@@ -60,4 +60,39 @@ body {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+.simple-ui .rounded-4xl,
+.simple-ui .rounded-3xl,
+.simple-ui .rounded-2xl,
+.simple-ui .rounded-\[36px\],
+.simple-ui .rounded-\[32px\],
+.simple-ui .rounded-\[28px\],
+.simple-ui .rounded-\[22px\] {
+  border-radius: 0.5rem;
+}
+
+.simple-ui [class*='shadow-['] {
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.06);
+}
+
+.simple-ui .tracking-\[0\.35em\],
+.simple-ui .tracking-\[0\.32em\],
+.simple-ui .tracking-\[0\.3em\],
+.simple-ui .tracking-\[0\.28em\],
+.simple-ui .tracking-\[0\.25em\],
+.simple-ui .tracking-\[0\.2em\],
+.simple-ui .tracking-\[0\.18em\] {
+  letter-spacing: 0.08em;
+}
+
+.simple-ui h1,
+.simple-ui h2,
+.simple-ui h3 {
+  letter-spacing: 0;
+}
+
+.simple-ui h2.text-4xl {
+  font-size: 1.875rem;
+  line-height: 2.25rem;
 }

@@ -1,0 +1,4 @@
+# Ignore compiled directories
+frontend/dist/
+backend/target/
+node_modules/

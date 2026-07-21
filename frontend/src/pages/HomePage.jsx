@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { getApiErrorMessage } from '../api/client'
 import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
 import SmartInsightCard from '../components/ui/SmartInsightCard'
@@ -15,8 +14,10 @@ import {
   getGroceries,
   getSellerProducts,
 } from '../services/groceryService'
-import { getNaturalExpiryDate } from '../utils/expiry'
+import { getNaturalExpiryDate, formatExpiryDate, normalizeKey } from '../utils/expiry'
 import { buildHomeSmartBuySuggestions } from '../utils/smartSuggestions'
+import { useSmartRules } from '../context/SmartRulesContext'
+import { formatPrice } from '../utils/format'
 
 const AVAILABILITY_THRESHOLD = 3
 const initialQuickAddDraft = {
@@ -46,13 +47,11 @@ const quickBuyModalStyle = {
 }
 
 const homeHeroStyle = {
-  background:
-    'linear-gradient(135deg, rgba(219,234,254,0.92) 0%, rgba(255,255,255,0.98) 54%, rgba(240,249,255,0.92) 100%)',
+  background: '#ffffff',
 }
 
 const catalogCardStyle = {
-  background:
-    'linear-gradient(145deg, rgba(14,165,233,0.12), rgba(255,255,255,0.96) 58%, rgba(16,185,129,0.08))',
+  background: '#ffffff',
 }
 
 const stockToneByAvailability = {
@@ -72,79 +71,6 @@ const stockToneByAvailability = {
     quantity: 'text-rose-700',
   },
 }
-
-const defaultItemPrices = {
-  milk: 32,
-  bread: 28,
-  eggs: 72,
-  rice: 95,
-  'wheat flour': 54,
-  apples: 140,
-  bananas: 48,
-  tomatoes: 36,
-  onions: 40,
-  potatoes: 34,
-  'cooking oil': 165,
-  salt: 24,
-  sugar: 46,
-  tea: 120,
-  coffee: 185,
-  biscuits: 30,
-  soap: 38,
-  detergent: 110,
-  paneer: 85,
-  yogurt: 42,
-  spinach: 25,
-}
-
-const defaultCategoryPrices = {
-  dairy: 60,
-  bakery: 35,
-  fruits: 90,
-  vegetables: 40,
-  grains: 80,
-  essentials: 75,
-  beverages: 110,
-  snacks: 45,
-  household: 95,
-}
-
-const defaultCatalogQuantities = {
-  'milk|dairy': 8,
-  'bread|bakery': 0,
-  'eggs|dairy': 12,
-  'rice|grains': 15,
-  'wheat flour|grains': 7,
-  'apples|fruits': 10,
-  'bananas|fruits': 9,
-  'tomatoes|vegetables': 11,
-  'onions|vegetables': 6,
-  'potatoes|vegetables': 14,
-  'cooking oil|essentials': 5,
-  'salt|essentials': 18,
-  'sugar|essentials': 13,
-  'tea|beverages': 0,
-  'coffee|beverages': 4,
-  'biscuits|snacks': 16,
-  'soap|household': 9,
-  'detergent|household': 6,
-}
-
-const normalizeKey = (value) => (value || '').trim().toLowerCase()
-
-const catalogKey = (name, category) => `${normalizeKey(name)}|${normalizeKey(category)}`
-
-const formatPrice = (price, currency = 'INR') =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(price ?? 0)
-
-const resolveFallbackPrice = (item) =>
-  defaultItemPrices[normalizeKey(item.name)] ?? defaultCategoryPrices[normalizeKey(item.category)] ?? 99
-
-const resolveFallbackQuantity = (item) => defaultCatalogQuantities[catalogKey(item.name, item.category)] ?? 0
 
 const paymentMethodOptions = [
   { value: 'GPAY', label: 'Google Pay UPI' },
@@ -170,6 +96,7 @@ const resolveAvailability = (quantity) => {
 function HomePage() {
   const toast = useToast()
   const navigate = useNavigate()
+  const { rules } = useSmartRules()
   const [myItems, setMyItems] = useState([])
   const [catalogItems, setCatalogItems] = useState([])
   const [catalogCategories, setCatalogCategories] = useState([])
@@ -179,7 +106,13 @@ function HomePage() {
   const [sellerOrderTarget, setSellerOrderTarget] = useState(null)
   const [sellerPaymentDraft, setSellerPaymentDraft] = useState(initialSellerPaymentDraft)
   const [sellerPaymentProcessing, setSellerPaymentProcessing] = useState(false)
-  const [catalogFilters, setCatalogFilters] = useState({ category: '', search: '' })
+  
+  const [searchParams] = useSearchParams()
+  const catalogFilters = {
+    category: searchParams.get('category') || '',
+    search: searchParams.get('search') || '',
+  }
+
   const [error, setError] = useState('')
   const [quickAddTarget, setQuickAddTarget] = useState(null)
   const [quickAddDraft, setQuickAddDraft] = useState(initialQuickAddDraft)
@@ -187,13 +120,13 @@ function HomePage() {
   const [quickPaymentProcessing, setQuickPaymentProcessing] = useState(false)
   const naturalQuickExpiryDate =
     quickAddDraft.purchased && quickAddTarget
-      ? getNaturalExpiryDate(quickAddTarget.name, quickAddTarget.category)
+      ? getNaturalExpiryDate(quickAddTarget.name, quickAddTarget.category, rules)
       : null
   const displayedQuickExpiryDate = quickAddDraft.expiryDate || naturalQuickExpiryDate || ''
   const quickBuyPrice = quickAddTarget
     ? Number.isFinite(Number(quickAddTarget.price)) && quickAddTarget.price !== null
       ? Number(quickAddTarget.price)
-      : resolveFallbackPrice(quickAddTarget)
+      : rules?.price?.[normalizeKey(quickAddTarget.name)] ?? rules?.price?.[normalizeKey(quickAddTarget.category)] ?? 99
     : 0
   const quickBuyTotal = quickBuyPrice * Math.max(Number(quickAddDraft.quantity) || 0, 0)
   const quickNeedsUpi = quickAddDraft.paymentMethod === 'UPI' || quickAddDraft.paymentMethod === 'GPAY'
@@ -207,13 +140,6 @@ function HomePage() {
   const sellerUpiIdIsValid =
     !sellerNeedsUpi || upiPattern.test(sellerPaymentDraft.upiId.trim())
   const sellerPaymentReady = !sellerNeedsMockPayment || sellerPaymentDraft.paymentVerified
-  const formatNaturalExpiry = (value) => {
-    if (!value) {
-      return 'Mark as purchased to preview expiry'
-    }
-
-    return new Date(`${value}T00:00:00`).toLocaleDateString()
-  }
 
   const loadHomeData = async () => {
     setError('')
@@ -222,7 +148,7 @@ function HomePage() {
         const [itemsData, categoriesData, catalogData, sellerProductsData] = await Promise.all([
           getGroceries(),
           getCategories(),
-          getCatalog(),
+          getCatalog(catalogFilters),
           getSellerProducts(),
         ])
 
@@ -235,35 +161,9 @@ function HomePage() {
     }
   }
 
-  const loadCatalog = async (category = '', search = '') => {
-    try {
-      const params = {}
-
-      if (category) {
-        params.category = category
-      }
-
-      if (search) {
-        params.search = search
-      }
-
-      setCatalogItems(await getCatalog(params))
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Unable to load catalog items right now.'))
-      setCatalogItems([])
-    }
-  }
-
   useEffect(() => {
     loadHomeData()
-  }, [])
-
-  const handleCatalogFilterChange = (event) => {
-    const { name, value } = event.target
-    const nextFilters = { ...catalogFilters, [name]: value }
-    setCatalogFilters(nextFilters)
-    loadCatalog(nextFilters.category, nextFilters.search)
-  }
+  }, [searchParams])
 
   const handleOpenQuickAdd = (item) => {
     setQuickAddTarget(item)
@@ -572,7 +472,7 @@ function HomePage() {
                 <div>
                   <label className="text-sm font-medium text-slate-700">Expected Expiry</label>
                   <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    {formatNaturalExpiry(displayedQuickExpiryDate)}
+                    {formatExpiryDate(displayedQuickExpiryDate)}
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
                     This purchase is saved as bought immediately, and expiry is calculated automatically.
@@ -737,17 +637,16 @@ function HomePage() {
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <article
           style={homeHeroStyle}
-          className="overflow-hidden rounded-4xl border border-sky-100 p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
+          className="rounded-lg border border-slate-200 p-5 shadow-sm"
         >
           <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
             Grocery Home
           </p>
           <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950">
-            Plan what to buy fast, then use the dashboard when you need the numbers.
+            Buy groceries without extra steps.
           </h2>
           <p className="mt-4 max-w-xl text-sm text-slate-600 sm:text-base">
-            Browse your grocery catalog, buy items fast, and move to the dashboard for stock,
-            pending items, smart recommendations, kitchen reminders, and stored notifications.
+            Search the catalog, buy quickly, and open the dashboard only when you need stock details.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -804,13 +703,13 @@ function HomePage() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-emerald-700">
-                Smart Buy Suggestions
+                Smart Suggestions
               </p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-                Useful next buys from your stock signals
+                Next useful buys
               </h2>
               <p className="mt-2 max-w-2xl text-sm text-slate-500">
-                These are generated from low stock, expiry timing, and live seller availability.
+                Based on low stock, expiry timing, and seller availability.
               </p>
             </div>
             <span className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -841,41 +740,18 @@ function HomePage() {
         </section>
       )}
 
-      <section className="rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
+      <section id="shop-catalog" className="mt-8 rounded-4xl border border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div>
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.3em] text-indigo-700">
               Shop
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Pick what you want to buy
+              Shop catalog
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              Search grocery names or categories here and add them straight into your buying flow.
+              Search by item or category using the top bar, then buy from the card.
             </p>
-          </div>
-
-          <div className="mt-5 grid gap-3 rounded-[28px] border border-slate-200 bg-slate-50/90 p-4 sm:grid-cols-[1.35fr_0.85fr]">
-            <input
-              name="search"
-              value={catalogFilters.search}
-              onChange={handleCatalogFilterChange}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-              placeholder="Search catalog, like paneer, pasta, cereal, spinach..."
-            />
-            <select
-              name="category"
-              value={catalogFilters.category}
-              onChange={handleCatalogFilterChange}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-sky-500"
-            >
-              <option value="">All Categories</option>
-              {catalogCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -888,17 +764,14 @@ function HomePage() {
 
           {catalogItems.map((item) => {
             const itemKey = `${item.category}-${item.name}`
-            const quantity =
-              Number.isFinite(Number(item.availableQuantity)) && item.availableQuantity !== null
-                ? Number(item.availableQuantity)
-                : resolveFallbackQuantity(item)
+            const quantity = Number(item.availableQuantity) || 0
             const availability = item.availability || resolveAvailability(quantity)
             const stockTone =
               stockToneByAvailability[availability] || stockToneByAvailability.OUT_OF_STOCK
             const displayPrice =
               Number.isFinite(Number(item.price)) && item.price !== null
                 ? Number(item.price)
-                : resolveFallbackPrice(item)
+                : rules?.price?.[normalizeKey(item.name)] ?? rules?.price?.[normalizeKey(item.category)] ?? 99
 
             return (
               <article
@@ -967,10 +840,10 @@ function HomePage() {
               Seller Market
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-              Order directly from sellers
+              Order from sellers
             </h2>
             <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              These products are listed by sellers. Orders appear in the seller dashboard as pending.
+              Seller orders go to the seller dashboard for approval.
             </p>
           </div>
           <span className="rounded-full border border-emerald-100 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
