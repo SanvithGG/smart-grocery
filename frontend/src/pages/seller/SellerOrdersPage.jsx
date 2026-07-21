@@ -6,15 +6,9 @@ import { sellerNavigationItems } from '../../data/sellerNavigation'
 import RoleDashboardLayout from '../../layouts/RoleDashboardLayout'
 import { getSellerOrders, updateSellerOrderStatus } from '../../services/sellerService'
 import { CheckCircle2, Clock3, PackageCheck, ShoppingCart } from 'lucide-react'
+import { formatPrice } from '../../utils/format'
 
 const statuses = ['DELIVERING', 'DELIVERED']
-
-const formatPrice = (value) =>
-  new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
-  }).format(Number(value) || 0)
 
 function SellerOrdersPage() {
   const [orders, setOrders] = useState([])

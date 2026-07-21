@@ -40,6 +40,9 @@ public class GroceryController {
 
     @GetMapping("/categories")
     public List<String> getCategories(Principal principal) {
+        if (principal == null) {
+            return groceryService.getPublicCategories();
+        }
         return groceryService.getCategories(principal.getName());
     }
 
@@ -49,7 +52,8 @@ public class GroceryController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search
     ) {
-        return groceryService.getCatalogItems(principal.getName(), category, search);
+        String username = principal != null ? principal.getName() : null;
+        return groceryService.getCatalogItems(username, category, search);
     }
 
     @GetMapping("/seller-products")
@@ -74,6 +78,11 @@ public class GroceryController {
     @GetMapping("/shopping-list")
     public List<ShoppingItemDTO> getShoppingList(Principal principal) {
         return groceryService.getSmartShoppingList(principal.getName());
+    }
+
+    @GetMapping("/smart-rules")
+    public List<com.example.backend.entity.SmartRule> getSmartRules() {
+        return groceryService.getSmartRules();
     }
 
     @GetMapping("/recommendations")

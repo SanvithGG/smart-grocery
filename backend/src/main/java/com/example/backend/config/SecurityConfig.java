@@ -58,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/api/grocery/catalog").permitAll()
+                        .requestMatchers("/api/grocery/categories").permitAll()
                         .requestMatchers("/api/seller/**").hasAnyRole("SELLER", "SUPER_ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated());

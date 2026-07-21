@@ -6,11 +6,14 @@ import com.example.backend.dto.GrocerySummaryResponse;
 import com.example.backend.dto.RecommendationResponse;
 import com.example.backend.dto.ShoppingItemDTO;
 import com.example.backend.entity.GroceryItem;
+import com.example.backend.entity.SmartRule;
 import com.example.backend.entity.User;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
 import com.example.backend.repository.GroceryRepository;
 import com.example.backend.repository.UserRepository;
+import com.example.backend.repository.CatalogStockRepository;
+import com.example.backend.repository.SmartRuleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,12 +22,10 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,31 +35,6 @@ public class GroceryService {
     private static final int SMART_SHOPPING_EXPIRY_DAYS = 2;
     private static final int FALLBACK_EXPIRY_DAYS = 7;
     private static final String DEFAULT_CURRENCY = "INR";
-    private static final List<CatalogItemResponse> DEFAULT_CATALOG = List.of(
-            new CatalogItemResponse("Milk", "Dairy"),
-            new CatalogItemResponse("Bread", "Bakery"),
-            new CatalogItemResponse("Eggs", "Dairy"),
-            new CatalogItemResponse("Rice", "Grains"),
-            new CatalogItemResponse("Wheat Flour", "Grains"),
-            new CatalogItemResponse("Apples", "Fruits"),
-            new CatalogItemResponse("Bananas", "Fruits"),
-            new CatalogItemResponse("Tomatoes", "Vegetables"),
-            new CatalogItemResponse("Onions", "Vegetables"),
-            new CatalogItemResponse("Potatoes", "Vegetables"),
-            new CatalogItemResponse("Cooking Oil", "Essentials"),
-            new CatalogItemResponse("Salt", "Essentials"),
-            new CatalogItemResponse("Sugar", "Essentials"),
-            new CatalogItemResponse("Tea", "Beverages"),
-            new CatalogItemResponse("Coffee", "Beverages"),
-            new CatalogItemResponse("Biscuits", "Snacks"),
-            new CatalogItemResponse("Soap", "Household"),
-            new CatalogItemResponse("Detergent", "Household")
-    );
-    private static final Map<String, Integer> ITEM_EXPIRY_DAYS = createItemExpiryDays();
-    private static final Map<String, Integer> CATEGORY_EXPIRY_DAYS = createCategoryExpiryDays();
-    private static final Map<String, Double> ITEM_PRICES = createItemPrices();
-    private static final Map<String, Double> CATEGORY_PRICES = createCategoryPrices();
-    private final Map<String, Integer> catalogStockQuantities = new ConcurrentHashMap<>(createCatalogStockQuantities());
 
     @Autowired
     private GroceryRepository groceryRepository;
@@ -68,6 +44,12 @@ public class GroceryService {
 
     @Autowired
     private GeminiCatalogService geminiCatalogService;
+
+    @Autowired
+    private CatalogStockRepository catalogStockRepository;
+
+    @Autowired
+    private SmartRuleRepository smartRuleRepository;
 
     public List<GroceryItem> getItemsByUsername(String username) {
         User user = getUser(username);
@@ -84,23 +66,33 @@ public class GroceryService {
 
     public List<String> getCategories(String username) {
         return java.util.stream.Stream.concat(
-                        DEFAULT_CATALOG.stream().map(item -> item.getCategory()),
+                        catalogStockRepository.findAll().stream().map(stock -> stock.getCategory()),
                         getItemsByUsername(username).stream().map(item -> item.getCategory())
                 )
                 .filter(Objects::nonNull)
-                .map(category -> category.trim())
+                .map(str -> str.trim())
                 .filter(category -> !category.isBlank())
                 .distinct()
-                .sorted((a, b) -> a.compareToIgnoreCase(b))
+                .sorted((s1, s2) -> s1.compareToIgnoreCase(s2))
+                .toList();
+    }
+
+    public List<String> getPublicCategories() {
+        return catalogStockRepository.findAll().stream()
+                .map(stock -> stock.getCategory())
+                .filter(Objects::nonNull)
+                .map(str -> str.trim())
+                .filter(category -> !category.isBlank())
+                .distinct()
+                .sorted((s1, s2) -> s1.compareToIgnoreCase(s2))
                 .toList();
     }
 
     public List<CatalogItemResponse> getCatalogItems(String username, String category, String search) {
-        List<CatalogItemResponse> staticCatalog = DEFAULT_CATALOG.stream()
+        List<CatalogItemResponse> staticCatalog = catalogStockRepository.findAll().stream()
+                .map(stock -> new CatalogItemResponse(stock.getName(), stock.getCategory(), "DATABASE"))
                 .filter(item -> matchesCatalogCategory(item, category))
                 .filter(item -> matchesCatalogSearch(item, search))
-                .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
-                        .thenComparing((CatalogItemResponse item) -> item.getName()))
                 .toList();
 
         List<CatalogItemResponse> generatedCatalog = geminiCatalogService.getCatalogSuggestions(category, search)
@@ -119,30 +111,40 @@ public class GroceryService {
         return mergedCatalog.values().stream()
                 .map(this::enrichCatalogItem)
                 .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
-                        .thenComparing((CatalogItemResponse item) -> item.getName()))
+                        .thenComparing(item -> item.getName()))
                 .toList();
     }
 
     public List<CatalogItemResponse> getCatalogStock() {
-        return DEFAULT_CATALOG.stream()
+        return catalogStockRepository.findAll().stream()
+                .map(stock -> new CatalogItemResponse(stock.getName(), stock.getCategory(), "DATABASE"))
                 .map(this::enrichCatalogItem)
                 .sorted(Comparator.comparing((CatalogItemResponse item) -> item.getCategory())
-                        .thenComparing((CatalogItemResponse item) -> item.getName()))
+                        .thenComparing(item -> item.getName()))
                 .toList();
     }
 
     public CatalogItemResponse updateCatalogStock(String name, String category, int quantity) {
         String normalizedName = name == null ? "" : name.trim();
         String normalizedCategory = category == null ? "" : category.trim();
-        String key = catalogKey(normalizedName, normalizedCategory);
 
-        CatalogItemResponse matchingItem = DEFAULT_CATALOG.stream()
-                .filter(item -> catalogKey(item.getName(), item.getCategory()).equals(key))
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Catalog item not found"));
+        com.example.backend.entity.CatalogStock stock = catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase(normalizedName, normalizedCategory)
+                .orElseGet(() -> {
+                    com.example.backend.entity.CatalogStock ns = new com.example.backend.entity.CatalogStock();
+                    ns.setName(normalizedName);
+                    ns.setCategory(normalizedCategory);
+                    return ns;
+                });
 
-        catalogStockQuantities.put(key, Math.max(0, quantity));
-        return enrichCatalogItem(matchingItem);
+        stock.setQuantity(Math.max(0, quantity));
+        stock.setUpdatedAt(LocalDateTime.now());
+        catalogStockRepository.save(stock);
+
+        return enrichCatalogItem(new CatalogItemResponse(normalizedName, normalizedCategory));
+    }
+
+    public List<SmartRule> getSmartRules() {
+        return smartRuleRepository.findAll();
     }
 
     public GroceryItem addItem(String username, GroceryItem item) {
@@ -178,7 +180,7 @@ public class GroceryService {
 
         return shoppingItems.values().stream()
                 .sorted(Comparator.comparingInt(this::shoppingPriorityRank)
-                        .thenComparing((ShoppingItemDTO item) -> item.getName()))
+                        .thenComparing(item -> item.getName()))
                 .toList();
     }
 
@@ -191,7 +193,7 @@ public class GroceryService {
                 .map(this::buildRecommendation)
                 .filter(recommendation -> recommendation != null)
                 .sorted(Comparator.comparingInt(this::priorityRank)
-                        .thenComparing((RecommendationResponse rec) -> rec.getItemName()))
+                        .thenComparing(rec -> rec.getItemName()))
                 .toList();
     }
 
@@ -202,8 +204,8 @@ public class GroceryService {
                 .map(this::buildExpiryAlert)
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparingInt(this::expirySeverityRank)
-                        .thenComparing((ExpiryAlertResponse alert) -> alert.getExpiryDate())
-                        .thenComparing((ExpiryAlertResponse alert) -> alert.getItemName()))
+                        .thenComparing(alert -> alert.getExpiryDate())
+                        .thenComparing(alert -> alert.getItemName()))
                 .toList();
     }
 
@@ -246,7 +248,6 @@ public class GroceryService {
             consumeCatalogStock(item.getName(), item.getCategory(), item.getQuantity());
         }
         item.setExpiryDate(resolveExpiryDate(item.getName(), item.getCategory(), item.isPurchased(), updated.getExpiryDate()));
-        item.setImageUrl(updated.getImageUrl());
         updatePurchaseHistory(item, !wasPurchased && updated.isPurchased());
         return groceryRepository.save(item);
     }
@@ -444,8 +445,7 @@ public class GroceryService {
                 buildShoppingPriority(item, reasons, today),
                 item.getQuantity(),
                 item.isPurchased(),
-                item.getExpiryDate(),
-                item.getImageUrl()
+                item.getExpiryDate()
         );
     }
 
@@ -479,7 +479,13 @@ public class GroceryService {
             return true;
         }
 
-        return item.getCategory() != null && item.getCategory().equalsIgnoreCase(category.trim());
+        String[] categories = category.split(",");
+        for (String cat : categories) {
+            if (item.getCategory() != null && item.getCategory().equalsIgnoreCase(cat.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesSearch(GroceryItem item, String search) {
@@ -507,7 +513,13 @@ public class GroceryService {
             return true;
         }
 
-        return item.getCategory().equalsIgnoreCase(category.trim());
+        String[] categories = category.split(",");
+        for (String cat : categories) {
+            if (item.getCategory().equalsIgnoreCase(cat.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesCatalogSearch(CatalogItemResponse item, String search) {
@@ -521,7 +533,9 @@ public class GroceryService {
     }
 
     private CatalogItemResponse enrichCatalogItem(CatalogItemResponse item) {
-        int availableQuantity = catalogStockQuantities.getOrDefault(catalogKey(item.getName(), item.getCategory()), 0);
+        int availableQuantity = catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase(item.getName(), item.getCategory())
+                .map(stock -> stock.getQuantity())
+                .orElse(0);
 
         return new CatalogItemResponse(
                 item.getName(),
@@ -530,23 +544,16 @@ public class GroceryService {
                 resolveCatalogPrice(item.getName(), item.getCategory()),
                 DEFAULT_CURRENCY,
                 availableQuantity,
-                resolveAvailability(availableQuantity),
-                item.getImageUrl()
+                resolveAvailability(availableQuantity)
         );
     }
 
     private Double resolveCatalogPrice(String name, String category) {
-        Double itemPrice = ITEM_PRICES.get(normalizeKey(name));
-        if (itemPrice != null) {
-            return itemPrice;
-        }
-
-        Double categoryPrice = CATEGORY_PRICES.get(normalizeKey(category));
-        if (categoryPrice != null) {
-            return categoryPrice;
-        }
-
-        return 99.0;
+        return smartRuleRepository.findByItemKeyIgnoreCaseAndType(name, SmartRule.RuleType.PRICE)
+                .map(rule -> Double.valueOf(rule.getValue()))
+                .orElseGet(() -> smartRuleRepository.findByItemKeyIgnoreCaseAndType(category, SmartRule.RuleType.PRICE)
+                        .map(rule -> Double.valueOf(rule.getValue()))
+                        .orElse(99.0));
     }
 
     private String resolveAvailability(int availableQuantity) {
@@ -561,23 +568,21 @@ public class GroceryService {
         return "IN_STOCK";
     }
 
-    private String catalogKey(String name, String category) {
-        return normalizeKey(name) + "|" + normalizeKey(category);
-    }
-
     private void consumeCatalogStock(String name, String category, int quantity) {
-        String key = catalogKey(name, category);
-        if (!catalogStockQuantities.containsKey(key)) {
+        com.example.backend.entity.CatalogStock stock = catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase(name, category)
+                .orElse(null);
+
+        if (stock == null) {
             return;
         }
 
-        int currentQuantity = catalogStockQuantities.getOrDefault(key, 0);
-
-        if (currentQuantity < quantity) {
+        if (stock.getQuantity() < quantity) {
             throw new ConflictException("Not enough stock available for this purchase");
         }
 
-        catalogStockQuantities.put(key, currentQuantity - quantity);
+        stock.setQuantity(stock.getQuantity() - quantity);
+        stock.setUpdatedAt(LocalDateTime.now());
+        catalogStockRepository.save(stock);
     }
 
     private LocalDate resolveExpiryDate(String name, String category, boolean purchased, LocalDate requestedExpiryDate) {
@@ -589,122 +594,12 @@ public class GroceryService {
             return requestedExpiryDate;
         }
 
-        String normalizedName = normalizeKey(name);
-        Integer itemDays = ITEM_EXPIRY_DAYS.get(normalizedName);
-        if (itemDays != null) {
-            return LocalDate.now().plusDays(itemDays);
-        }
+        Integer itemDays = smartRuleRepository.findByItemKeyIgnoreCaseAndType(name, SmartRule.RuleType.EXPIRY)
+                .map(rule -> Integer.valueOf(rule.getValue()))
+                .orElseGet(() -> smartRuleRepository.findByItemKeyIgnoreCaseAndType(category, SmartRule.RuleType.EXPIRY)
+                        .map(rule -> Integer.valueOf(rule.getValue()))
+                        .orElse(FALLBACK_EXPIRY_DAYS));
 
-        Integer categoryDays = CATEGORY_EXPIRY_DAYS.get(normalizeKey(category));
-        if (categoryDays != null) {
-            return LocalDate.now().plusDays(categoryDays);
-        }
-
-        return LocalDate.now().plusDays(FALLBACK_EXPIRY_DAYS);
-    }
-
-    private String normalizeKey(String value) {
-        return value == null ? "" : value.trim().toLowerCase();
-    }
-
-    private static Map<String, Integer> createItemExpiryDays() {
-        Map<String, Integer> expiryDays = new HashMap<>();
-        expiryDays.put("milk", 3);
-        expiryDays.put("bread", 5);
-        expiryDays.put("eggs", 14);
-        expiryDays.put("rice", 180);
-        expiryDays.put("wheat flour", 120);
-        expiryDays.put("apples", 10);
-        expiryDays.put("bananas", 4);
-        expiryDays.put("tomatoes", 7);
-        expiryDays.put("onions", 21);
-        expiryDays.put("potatoes", 30);
-        expiryDays.put("cooking oil", 180);
-        expiryDays.put("salt", 365);
-        expiryDays.put("sugar", 365);
-        expiryDays.put("tea", 180);
-        expiryDays.put("coffee", 180);
-        expiryDays.put("biscuits", 120);
-        expiryDays.put("paneer", 7);
-        expiryDays.put("yogurt", 7);
-        expiryDays.put("spinach", 3);
-        return expiryDays;
-    }
-
-    private static Map<String, Integer> createCategoryExpiryDays() {
-        Map<String, Integer> expiryDays = new HashMap<>();
-        expiryDays.put("dairy", 7);
-        expiryDays.put("bakery", 5);
-        expiryDays.put("fruits", 7);
-        expiryDays.put("vegetables", 7);
-        expiryDays.put("grains", 180);
-        expiryDays.put("essentials", 180);
-        expiryDays.put("beverages", 90);
-        expiryDays.put("snacks", 120);
-        expiryDays.put("household", 365);
-        return expiryDays;
-    }
-
-    private static Map<String, Double> createItemPrices() {
-        Map<String, Double> prices = new HashMap<>();
-        prices.put("milk", 32.0);
-        prices.put("bread", 28.0);
-        prices.put("eggs", 72.0);
-        prices.put("rice", 95.0);
-        prices.put("wheat flour", 54.0);
-        prices.put("apples", 140.0);
-        prices.put("bananas", 48.0);
-        prices.put("tomatoes", 36.0);
-        prices.put("onions", 40.0);
-        prices.put("potatoes", 34.0);
-        prices.put("cooking oil", 165.0);
-        prices.put("salt", 24.0);
-        prices.put("sugar", 46.0);
-        prices.put("tea", 120.0);
-        prices.put("coffee", 185.0);
-        prices.put("biscuits", 30.0);
-        prices.put("soap", 38.0);
-        prices.put("detergent", 110.0);
-        prices.put("paneer", 85.0);
-        prices.put("yogurt", 42.0);
-        prices.put("spinach", 25.0);
-        return prices;
-    }
-
-    private static Map<String, Double> createCategoryPrices() {
-        Map<String, Double> prices = new HashMap<>();
-        prices.put("dairy", 60.0);
-        prices.put("bakery", 35.0);
-        prices.put("fruits", 90.0);
-        prices.put("vegetables", 40.0);
-        prices.put("grains", 80.0);
-        prices.put("essentials", 75.0);
-        prices.put("beverages", 110.0);
-        prices.put("snacks", 45.0);
-        prices.put("household", 95.0);
-        return prices;
-    }
-
-    private static Map<String, Integer> createCatalogStockQuantities() {
-        Map<String, Integer> stock = new HashMap<>();
-        stock.put("milk|dairy", 8);
-        stock.put("bread|bakery", 0);
-        stock.put("eggs|dairy", 12);
-        stock.put("rice|grains", 15);
-        stock.put("wheat flour|grains", 7);
-        stock.put("apples|fruits", 10);
-        stock.put("bananas|fruits", 9);
-        stock.put("tomatoes|vegetables", 11);
-        stock.put("onions|vegetables", 6);
-        stock.put("potatoes|vegetables", 14);
-        stock.put("cooking oil|essentials", 5);
-        stock.put("salt|essentials", 18);
-        stock.put("sugar|essentials", 13);
-        stock.put("tea|beverages", 0);
-        stock.put("coffee|beverages", 4);
-        stock.put("biscuits|snacks", 16);
-        stock.put("soap|household", 9);
-        stock.put("detergent|household", 6);
-        return stock;
+        return LocalDate.now().plusDays(itemDays);
     }
 }

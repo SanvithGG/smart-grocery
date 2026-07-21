@@ -55,6 +55,25 @@ public class GeminiCatalogService {
         }
     }
 
+    public List<CatalogItemResponse> parseRecipeIngredients(String recipeText) {
+        if (apiKey == null || apiKey.isBlank() || recipeText == null || recipeText.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            String responseBody = restClient.post()
+                    .uri(String.format(GEMINI_API_URL_TEMPLATE, model))
+                    .header("x-goog-api-key", apiKey)
+                    .body(buildRecipeRequestBody(recipeText))
+                    .retrieve()
+                    .body(String.class);
+
+            return parseSuggestions(responseBody);
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
     private Map<String, Object> buildRequestBody(String category, String search) {
         String prompt = """
                 Return a JSON array of grocery catalog suggestions for a home grocery app.
@@ -79,6 +98,33 @@ public class GeminiCatalogService {
                 ),
                 "generationConfig", Map.of(
                         "temperature", 0.2,
+                        "responseMimeType", "application/json"
+                )
+        );
+    }
+
+    private Map<String, Object> buildRecipeRequestBody(String recipeText) {
+        String prompt = """
+                Extract the grocery ingredients from the following recipe text.
+                Return a JSON array of grocery catalog items.
+                Each array item must be an object with exactly these string fields: "name", "category".
+                Category should be one of common supermarket aisles (e.g. PRODUCE, DAIRY, BAKERY, MEAT, PANTRY, SPICES).
+                Do not include quantities in the name, just the base ingredient name.
+                Use practical grocery products only. No markdown. No explanation.
+                Recipe:
+                %s
+                """.formatted(recipeText);
+
+        return Map.of(
+                "contents", List.of(
+                        Map.of(
+                                "parts", List.of(
+                                        Map.of("text", prompt)
+                                )
+                        )
+                ),
+                "generationConfig", Map.of(
+                        "temperature", 0.1,
                         "responseMimeType", "application/json"
                 )
         );

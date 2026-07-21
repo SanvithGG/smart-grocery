@@ -17,6 +17,8 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidationException(
             MethodArgumentNotValidException exception,
@@ -68,9 +70,10 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        log.error("Unhandled exception on {}: {}", request.getRequestURI(), exception.getMessage(), exception);
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred",
+                "An unexpected error occurred: " + exception.getMessage(),
                 request.getRequestURI(),
                 null
         );

@@ -52,7 +52,7 @@ function getPostLoginPath(role) {
     return '/seller'
   }
 
-  return '/home'
+  return '/'
 }
 
 function AuthPage({ mode }) {
