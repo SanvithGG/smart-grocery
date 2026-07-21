@@ -479,7 +479,13 @@ public class GroceryService {
             return true;
         }
 
-        return item.getCategory() != null && item.getCategory().equalsIgnoreCase(category.trim());
+        String[] categories = category.split(",");
+        for (String cat : categories) {
+            if (item.getCategory() != null && item.getCategory().equalsIgnoreCase(cat.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesSearch(GroceryItem item, String search) {
@@ -507,7 +513,13 @@ public class GroceryService {
             return true;
         }
 
-        return item.getCategory().equalsIgnoreCase(category.trim());
+        String[] categories = category.split(",");
+        for (String cat : categories) {
+            if (item.getCategory().equalsIgnoreCase(cat.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean matchesCatalogSearch(CatalogItemResponse item, String search) {

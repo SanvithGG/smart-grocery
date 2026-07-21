@@ -89,3 +89,8 @@ export async function getSmartRules() {
   const { data } = await api.get('/api/grocery/smart-rules')
   return data
 }
+
+export async function parseRecipe(recipeText) {
+  const { data } = await api.post('/api/recipe/parse', { recipeText })
+  return data
+}

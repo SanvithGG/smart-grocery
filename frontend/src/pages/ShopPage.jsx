@@ -62,7 +62,8 @@ function ShopPage() {
   
   const [searchParams, setSearchParams] = useSearchParams()
   const search = searchParams.get('search') || ''
-  const category = searchParams.get('category') || ''
+  const categories = searchParams.getAll('category')
+  const category = categories.join(',')
 
   const loadShopData = async () => {
     setError('')
@@ -174,11 +175,11 @@ function ShopPage() {
           </div>
           <div className="flex-shrink-0">
             <select
-              value={category}
+              value={categories.length === 1 ? categories[0] : ''}
               onChange={handleCategoryChange}
               className="w-full sm:w-48 rounded-2xl border-none bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500"
             >
-              <option value="">All Categories</option>
+              <option value="">{categories.length > 1 ? 'Multiple Selected' : 'All Categories'}</option>
               {catalogCategories.map((cat) => (
                 <option key={cat} value={cat}>
                   {cat}

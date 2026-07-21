@@ -57,7 +57,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/grocery/catalog").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/grocery/categories").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/grocery/seller-products").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/grocery/smart-rules").permitAll()
                         .requestMatchers("/api/seller/**").hasAnyRole("SELLER", "SUPER_ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                         .anyRequest().authenticated());

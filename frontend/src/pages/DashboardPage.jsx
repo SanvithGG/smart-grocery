@@ -44,7 +44,6 @@ function DashboardPage() {
 
   const dashboardSections = [
     { key: 'recommendations', label: 'Smart Picks', sublabel: 'Recommendation queue', icon: Lightbulb },
-    { key: 'low-stock-watchlist', label: 'Action Board', sublabel: 'Low-stock watchlist', icon: AlertTriangle },
     { key: 'kitchen-reminders', label: 'Kitchen Reminder', sublabel: 'Expiry reminders', icon: Clock },
     { key: 'pending-focus', label: 'Pending Focus', sublabel: 'Items that still need action', icon: Package },
     { key: 'recent-list', label: 'Recent List', sublabel: 'Latest grocery activity', icon: ShoppingCart },
@@ -402,7 +401,7 @@ function DashboardPage() {
                           </p>
                         </div>
                         <Link
-                          to="/home"
+                          to="/"
                           className="rounded-full border border-emerald-300/40 bg-emerald-300/10 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-300/20"
                         >
                           Open Marketplace
@@ -588,7 +587,7 @@ function DashboardPage() {
               Open Inventory
             </Link>
             <Link
-              to="/home"
+              to="/"
               className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
             >
               Back to Home

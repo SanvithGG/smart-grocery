@@ -40,6 +40,9 @@ public class GroceryController {
 
     @GetMapping("/categories")
     public List<String> getCategories(Principal principal) {
+        if (principal == null) {
+            return groceryService.getPublicCategories();
+        }
         return groceryService.getCategories(principal.getName());
     }
 
@@ -49,7 +52,8 @@ public class GroceryController {
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String search
     ) {
-        return groceryService.getCatalogItems(principal.getName(), category, search);
+        String username = principal != null ? principal.getName() : null;
+        return groceryService.getCatalogItems(username, category, search);
     }
 
     @GetMapping("/seller-products")

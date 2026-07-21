@@ -18,13 +18,16 @@ import {
   Cake,
   Coffee,
   Cookie,
-  LayoutGrid
+  LayoutGrid,
+  Menu,
+  X
 } from 'lucide-react'
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import Button from './ui/Button'
 import { useToast } from './ui/toast'
 import { acknowledgeExpiryAlert, getExpiryAlerts, getGroceries } from '../services/groceryService'
 import { clearSession, getSession } from '../utils/session'
+import RecipeModal from './RecipeModal'
 
 const AVAILABILITY_THRESHOLD = 3
 const POPUP_DURATION_MS = 7000
@@ -85,7 +88,8 @@ function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { username } = getSession()
+  const { username, token } = getSession()
+  const isLoggedIn = !!token
   const appsRef = useRef(null)
   const accountRef = useRef(null)
   const bellRef = useRef(null)
@@ -96,14 +100,42 @@ function AppShell() {
   const [popupOpen, setPopupOpen] = useState(false)
   const [popupStartedAt, setPopupStartedAt] = useState(0)
   const [now, setNow] = useState(0)
+  const [recipeModalOpen, setRecipeModalOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [showBanner, setShowBanner] = useState(true)
 
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams)
     if (value) params.set(key, value)
     else params.delete(key)
     
-    if (location.pathname !== '/home') {
-      navigate('/home?' + params.toString())
+    if (location.pathname !== '/') {
+      navigate('/?' + params.toString())
+      setTimeout(() => {
+        document.getElementById('shop-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 300)
+    } else {
+      setSearchParams(params, { replace: true })
+      document.getElementById('shop-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const toggleCategory = (id) => {
+    const params = new URLSearchParams(searchParams)
+    if (!id) {
+       params.delete('category')
+    } else {
+       const currentCategories = params.getAll('category')
+       if (currentCategories.includes(id)) {
+          params.delete('category')
+          currentCategories.filter(c => c !== id).forEach(c => params.append('category', c))
+       } else {
+          params.append('category', id)
+       }
+    }
+
+    if (location.pathname !== '/') {
+      navigate('/?' + params.toString())
       setTimeout(() => {
         document.getElementById('shop-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 300)
@@ -178,6 +210,7 @@ function AppShell() {
   }, [])
 
   useEffect(() => {
+    if (!isLoggedIn) return
     let cancelled = false
 
     Promise.all([
@@ -206,9 +239,10 @@ function AppShell() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isLoggedIn])
 
   useEffect(() => {
+    if (!isLoggedIn) return
     let cancelled = false
 
     Promise.all([
@@ -229,7 +263,7 @@ function AppShell() {
     return () => {
       cancelled = true
     }
-  }, [location.pathname])
+  }, [location.pathname, isLoggedIn])
 
   useEffect(() => {
     if (!popupOpen) {
@@ -269,11 +303,15 @@ function AppShell() {
   const popupCountdown = getPopupCountdown(now, popupStartedAt, POPUP_DURATION_MS)
   const accountLabel = username || 'user'
   const accountInitial = accountLabel.charAt(0).toUpperCase() || 'U'
+  
+  const activeCategories = searchParams.getAll('category')
+  const activeFilterCount = activeCategories.length + (searchParams.get('search') ? 1 : 0)
+
   const navigationItems = [
-    { to: '/home', label: 'Home', icon: Home, end: true },
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/inventory', label: 'Inventory', icon: Package2 },
-    { to: '/shopping-list', label: 'Buy Queue', icon: ShoppingCart },
+    { to: '/', label: 'Home', icon: Home, end: true },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, hasNewContent: true },
+    { to: '/inventory', label: 'Inventory', icon: Package2, hasNewContent: false },
+    { to: '/shopping-list', label: 'Buy Queue', icon: ShoppingCart, hasNewContent: false },
   ]
   const appItems = [
     ...navigationItems,
@@ -282,12 +320,6 @@ function AppShell() {
       icon: Lightbulb,
       to: '/dashboard',
       state: { openSection: 'recommendations' },
-    },
-    {
-      label: 'Action Board',
-      icon: AlertTriangle,
-      to: '/dashboard',
-      state: { openSection: 'low-stock-watchlist' },
     },
     {
       label: 'Reminders',
@@ -382,71 +414,108 @@ function AppShell() {
         </>
       )}
 
-      <header className='sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur'>
-        <div className='mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8'>
-          <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
-              <div className='min-w-0'>
-                <p className='truncate text-lg font-semibold text-slate-950'>Smart Grocery</p>
-                <p className='truncate text-xs text-slate-500'>{accountLabel}</p>
-              </div>
+      {showBanner && (
+        <div className='flex items-center justify-between px-4 py-2 text-sm bg-[#f3f3f3] border-b border-[#e5e5e5]'>
+          <span className='font-medium text-slate-700 opacity-90 mx-auto md:mx-0'>
+            Smart Grocery Pass <span className='mx-2 text-lg'>☺</span> Get free delivery for just $12/month
+          </span>
+          <button onClick={() => setShowBanner(false)} className='hidden md:flex items-center justify-center min-w-11 min-h-11 text-slate-500 hover:text-slate-800 transition rounded-lg hover:bg-slate-200/50 -mr-2'>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-              <div className='flex-1 max-w-2xl px-4 lg:px-8'>
-                <div className='relative w-full'>
-                  <Search className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400' />
-                  <input
-                    type='text'
-                    value={searchParams.get('search') || ''}
-                    onChange={(e) => updateFilter('search', e.target.value)}
-                    placeholder='Search for Products, Brands and More'
-                    className='w-full rounded-md bg-slate-100 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:bg-white focus:ring-1 focus:ring-sky-500 border border-transparent focus:border-sky-500'
-                  />
-                </div>
-              </div>
-
-              <div className='flex items-center gap-4 shrink-0'>
-                <nav className='hidden lg:flex items-center gap-2'>
-                  {navigationItems.map((item) => (
-                    <NavLink
-                      key={`top-${item.to}`}
-                      to={item.to}
-                      end={item.end}
-                      className={({ isActive }) => 
-                        `flex items-center gap-1.5 px-3 py-2 rounded-md transition ${isActive ? 'text-sky-600 bg-sky-50 font-medium' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'}`
-                      }
-                      aria-label={item.label}
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-sky-600' : 'text-slate-500'}`} />
-                          <span className='text-sm font-medium'>{item.label}</span>
-                        </>
-                      )}
-                    </NavLink>
-                  ))}
-                </nav>
-
-              <div className='flex items-center gap-2 md:justify-end shrink-0 lg:border-l lg:border-slate-200 lg:pl-4'>
-                <div className='relative' ref={bellRef}>
-                  <button
-                    type='button'
-                    aria-label='Open notifications'
-                    onClick={() => {
-                      setBellOpen((current) => !current)
-                      setAppsOpen(false)
-                      setAccountOpen(false)
-                    }}
-                    className='relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50'
+      <header className='sticky top-0 z-40 w-full bg-white border-b border-[#e5e5e5] shadow-sm'>
+        <div className='mx-auto max-w-7xl flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between sm:px-6 lg:px-8'>
+          
+          <div className="flex items-center justify-between">
+            <div className='flex items-center min-w-0 pr-4'>
+              <p className='truncate text-3xl font-extrabold tracking-tighter text-slate-950'>S.</p>
+              <nav className='hidden lg:flex items-center gap-6 ml-8'>
+                {navigationItems.map((item, i) => (
+                  <NavLink
+                    key={`top-${item.to}`}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) => 
+                      `flex items-center px-3 py-1.5 rounded-lg transition-all active:scale-95 text-[14px] font-semibold ${isActive ? 'text-slate-900 bg-slate-200/60' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`
+                    }
                   >
-                    <Bell className='h-5 w-5' />
-                    {notifications.length > 0 && (
-                      <span className='absolute -right-1 -top-1 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white'>
-                        {notifications.length}
-                      </span>
+                    {({ isActive }) => (
+                      <>
+                        <span>{item.label}</span>
+                        {item.hasNewContent && <span className='text-[10px] bg-slate-900 text-white px-1.5 py-0.5 rounded ml-1.5 font-bold uppercase tracking-wide leading-none'>New</span>}
+                      </>
                     )}
-                  </button>
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+
+            <div className="flex items-center gap-1 md:hidden">
+              <button
+                onClick={() => {
+                  setBellOpen((current) => !current)
+                  setAppsOpen(false)
+                  setAccountOpen(false)
+                  setMenuOpen(false)
+                }}
+                className='flex items-center justify-center min-w-11 min-h-11 rounded-lg border border-transparent text-slate-700 transition hover:bg-slate-50 relative'
+              >
+                <Bell className='h-5 w-5' />
+                {notifications.length > 0 && (
+                  <span className='absolute right-2 top-2 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white'>
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              <button onClick={() => setMenuOpen(!menuOpen)} className="flex items-center justify-center min-w-11 min-h-11 rounded-lg text-slate-700 hover:bg-slate-50 transition border border-slate-200 bg-white">
+                 {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="w-full md:w-auto md:flex-1 md:max-w-md lg:max-w-xl">
+             <div className='relative w-full'>
+                <Search className='absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500' />
+                <input
+                  type='text'
+                  value={searchParams.get('search') || ''}
+                  onChange={(e) => updateFilter('search', e.target.value)}
+                  placeholder='Search by Groceries'
+                  className='w-full rounded-lg bg-[#efefef] py-2.5 pl-11 pr-4 text-sm font-medium outline-none transition focus:bg-[#e8e8e8] border border-transparent placeholder:text-slate-500 hover:bg-[#e8e8e8]'
+                />
+              </div>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3 shrink-0">
+              <div className='flex items-center gap-4 mr-2 text-[14px] font-semibold text-slate-700'>
+                <button className='bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition whitespace-nowrap'>Be Pro</button>
+                <button onClick={() => setRecipeModalOpen(true)} className='border border-slate-300 bg-white text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition whitespace-nowrap'>Submit Recipe</button>
+              </div>
+
+              <div className='relative' ref={bellRef}>
+                <button
+                  type='button'
+                  aria-label='Open notifications'
+                  onClick={() => {
+                    setBellOpen((current) => !current)
+                    setAppsOpen(false)
+                    setAccountOpen(false)
+                  }}
+                  className='flex items-center justify-center min-w-11 min-h-11 rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 relative'
+                >
+                  <Bell className='h-5 w-5' />
+                  {notifications.length > 0 && (
+                    <span className='absolute right-1.5 top-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-semibold text-white'>
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
 
                   {bellOpen && (
-                    <div className='absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
+                    <div className='absolute right-0 top-14 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
                       <div className='flex items-center justify-between gap-3'>
                         <div>
                           <p className='text-xs font-semibold uppercase text-sky-700'>Notifications</p>
@@ -499,29 +568,27 @@ function AppShell() {
                       </div>
                     </div>
                   )}
-                </div>
+              </div>
 
-                <div className='relative' ref={appsRef}>
-                  <button
-                    type='button'
-                    aria-label='Open shortcuts'
-                    title='Shortcuts'
-                    onClick={() => {
-                      setAppsOpen((current) => !current)
-                      setBellOpen(false)
-                      setAccountOpen(false)
-                    }}
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg border text-slate-700 transition ${
-                      appsOpen
-                        ? 'border-sky-200 bg-sky-50'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
-                    }`}
-                  >
-                    <Grip className='h-5 w-5' />
-                  </button>
+              <div className='relative' ref={appsRef}>
+                <button
+                  type='button'
+                  onClick={() => {
+                    setAppsOpen((current) => !current)
+                    setBellOpen(false)
+                    setAccountOpen(false)
+                  }}
+                  className={`flex items-center justify-center min-w-11 min-h-11 rounded-lg border text-slate-700 transition ${
+                    appsOpen
+                      ? 'border-sky-200 bg-sky-50'
+                      : 'border-slate-200 bg-white hover:bg-slate-50'
+                  }`}
+                >
+                  <Grip className='h-5 w-5' />
+                </button>
 
                   {appsOpen && (
-                    <div className='absolute right-0 top-12 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
+                    <div className='absolute right-0 top-14 z-50 w-[min(24rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
                       <div className='rounded-lg bg-slate-50 p-4'>
                         <p className='text-xs font-semibold uppercase text-sky-700'>Shortcuts</p>
                         <h3 className='mt-1 text-lg font-semibold text-slate-950'>Open a page</h3>
@@ -544,33 +611,40 @@ function AppShell() {
                       </div>
                     </div>
                   )}
-                </div>
+              </div>
 
-                <div className='relative' ref={accountRef}>
-                  <button
-                    type='button'
-                    aria-label='Open account'
+              {!isLoggedIn ? (
+                <NavLink
+                  to="/login"
+                  className="flex items-center justify-center h-11 px-5 ml-2 rounded-lg font-semibold text-sm text-slate-900 border border-slate-200 bg-white hover:bg-slate-50 transition shadow-sm whitespace-nowrap"
+                >
+                  Log in
+                </NavLink>
+              ) : (
+                <div className='relative flex flex-col items-center border-l border-slate-200 pl-4 ml-1' ref={accountRef}>
+                   <button
                     onClick={() => {
                       setAccountOpen((current) => !current)
                       setBellOpen(false)
                       setAppsOpen(false)
                     }}
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg border text-slate-900 transition ${
-                      accountOpen
-                        ? 'border-sky-300 bg-sky-50'
-                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    className={`flex items-center justify-center min-w-11 min-h-11 rounded-full border text-slate-900 transition ${
+                      accountOpen ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white hover:bg-slate-50'
                     }`}
-                  >
-                    <span className='flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-950'>
+                   >
+                    <span className='flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-950'>
                       {accountInitial}
                     </span>
-                  </button>
+                   </button>
+                   <span className='mt-1 text-[11px] font-medium text-slate-500 leading-none'>
+                     {accountLabel}
+                   </span>
 
                   {accountOpen && (
-                    <div className='absolute right-0 top-12 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
+                    <div className='absolute right-0 top-16 z-50 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-4 shadow-lg'>
                       <div className='rounded-lg bg-slate-50 px-5 py-5 text-center'>
                         <div className='flex justify-center'>
-                          <span className='flex h-14 w-14 items-center justify-center rounded-lg border border-slate-300 bg-white text-xl font-bold text-slate-900'>
+                          <span className='flex h-14 w-14 items-center justify-center rounded-full border border-slate-300 bg-white text-xl font-bold text-slate-900'>
                             {accountInitial}
                           </span>
                         </div>
@@ -604,43 +678,105 @@ function AppShell() {
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
+              )}
           </div>
         </div>
 
-        <div className='border-t border-slate-100 bg-white'>
-          <div className='mx-auto flex w-full max-w-7xl items-center justify-center gap-2 md:gap-6 overflow-x-auto px-4 py-2 sm:px-6 lg:px-8 hide-scrollbar'>
+        <div className='hidden md:flex mx-auto w-full max-w-7xl items-center justify-between px-4 pb-3 sm:px-6 lg:px-8 gap-4'>
+          <div className='flex items-center gap-2 overflow-x-auto hide-scrollbar flex-1'>
             <button 
               type='button' 
-              onClick={() => updateFilter('category', '')}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full whitespace-nowrap transition ${!searchParams.get('category') ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50 hover:text-sky-600'}`}
+              onClick={() => toggleCategory('')}
+              className={`flex items-center px-4 py-2 rounded-xl whitespace-nowrap transition border text-[13px] ${activeCategories.length === 0 ? 'bg-slate-900 border-slate-900 text-white font-semibold shadow-sm' : 'bg-transparent border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-sm font-medium'}`}
             >
-              <LayoutGrid className={`h-4 w-4 ${!searchParams.get('category') ? 'text-sky-600' : 'text-slate-500'}`} />
-              <span className={`text-sm ${!searchParams.get('category') ? 'font-bold' : 'font-medium'}`}>All Categories</span>
+              All Categories <span className='ml-1 text-[10px] opacity-50'>▼</span>
             </button>
             
             {[
-              { id: 'PRODUCE', label: 'Produce', Icon: Apple },
-              { id: 'DAIRY', label: 'Dairy', Icon: Droplet },
-              { id: 'BAKERY', label: 'Bakery', Icon: Cake },
-              { id: 'BEVERAGES', label: 'Beverages', Icon: Coffee },
-              { id: 'SNACKS', label: 'Snacks', Icon: Cookie },
-              { id: 'HOUSEHOLD', label: 'Household', Icon: Home },
-              { id: 'ESSENTIALS', label: 'Essentials', Icon: Package2 }
-            ].map(({ id, label, Icon }) => (
+              { id: 'PRODUCE', label: 'Produce' },
+              { id: 'DAIRY', label: 'Dairy' },
+              { id: 'BAKERY', label: 'Bakery' },
+              { id: 'BEVERAGES', label: 'Beverages' },
+              { id: 'SNACKS', label: 'Snacks' },
+              { id: 'HOUSEHOLD', label: 'Household' },
+              { id: 'ESSENTIALS', label: 'Essentials' }
+            ].map(({ id, label }) => (
               <button 
                 key={id}
                 type='button' 
-                onClick={() => updateFilter('category', id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-full whitespace-nowrap transition ${searchParams.get('category') === id ? 'bg-sky-50 text-sky-700' : 'text-slate-600 hover:bg-slate-50 hover:text-sky-600'}`}
+                onClick={() => toggleCategory(id)}
+                className={`flex items-center px-4 py-2 rounded-xl whitespace-nowrap transition border text-[13px] ${activeCategories.includes(id) ? 'bg-slate-900 border-slate-900 text-white font-semibold shadow-sm' : 'bg-transparent border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-sm font-medium'}`}
               >
-                <Icon className={`h-4 w-4 ${searchParams.get('category') === id ? 'text-sky-600' : 'text-slate-500'}`} />
-                <span className={`text-sm ${searchParams.get('category') === id ? 'font-bold' : 'font-medium'}`}>{label}</span>
+                {label} <span className='ml-1 text-[10px] opacity-50'>▼</span>
               </button>
             ))}
           </div>
+          
+          <div className='flex items-center shrink-0 pl-4'>
+            {activeFilterCount > 0 && (
+              <div className='flex items-center gap-3 mr-2'>
+                <span className='flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white text-[11px] font-bold'>
+                  {activeFilterCount}
+                </span>
+                <button 
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams)
+                    params.delete('category')
+                    params.delete('search')
+                    setSearchParams(params, { replace: true })
+                    if (location.pathname !== '/') navigate('/?' + params.toString())
+                  }}
+                  className='flex items-center gap-1.5 text-[13px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 bg-white px-3 py-1.5 rounded-lg shadow-sm'
+                >
+                  Reset filters ⟳
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {menuOpen && (
+          <div className="md:hidden flex flex-col gap-4 px-4 py-5 border-t border-[#e5e5e5] bg-white absolute w-full left-0 shadow-xl z-50">
+             <div className="flex flex-wrap gap-2">
+                <button 
+                  type='button' 
+                  onClick={() => { toggleCategory(''); setMenuOpen(false); }}
+                  className={`flex items-center px-4 py-2.5 rounded-xl whitespace-nowrap transition border text-[13px] ${activeCategories.length === 0 ? 'bg-slate-900 border-slate-900 text-white font-semibold shadow-sm' : 'bg-transparent border-slate-200 text-slate-600 font-medium'}`}
+                >
+                  All Categories
+                </button>
+                {[
+                  { id: 'PRODUCE', label: 'Produce' },
+                  { id: 'DAIRY', label: 'Dairy' },
+                  { id: 'BAKERY', label: 'Bakery' },
+                  { id: 'BEVERAGES', label: 'Beverages' },
+                  { id: 'SNACKS', label: 'Snacks' },
+                  { id: 'HOUSEHOLD', label: 'Household' },
+                  { id: 'ESSENTIALS', label: 'Essentials' }
+                ].map(({ id, label }) => (
+                  <button 
+                    key={id}
+                    type='button' 
+                    onClick={() => { toggleCategory(id); setMenuOpen(false); }}
+                    className={`flex items-center px-4 py-2.5 rounded-xl whitespace-nowrap transition border text-[13px] ${activeCategories.includes(id) ? 'bg-slate-900 border-slate-900 text-white font-semibold shadow-sm' : 'bg-transparent border-slate-200 text-slate-600 font-medium'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+             </div>
+             
+             <div className="h-px bg-slate-200 my-1" />
+
+             <button className='w-full bg-slate-900 text-white px-4 py-3.5 rounded-lg font-semibold text-[15px]'>Be Pro</button>
+             <button onClick={() => { setRecipeModalOpen(true); setMenuOpen(false); }} className='w-full border border-slate-300 bg-white text-slate-900 px-4 py-3.5 rounded-lg font-semibold text-[15px]'>Submit Recipe</button>
+             
+             {!isLoggedIn ? (
+                <NavLink to="/login" onClick={() => setMenuOpen(false)} className="flex items-center justify-center w-full bg-sky-50 text-sky-700 px-4 py-3.5 rounded-lg font-semibold text-[15px]">Log in / Sign up</NavLink>
+             ) : (
+                <button onClick={() => { handleLogout(); setMenuOpen(false); }} className="flex items-center justify-center w-full bg-rose-50 text-rose-600 px-4 py-3.5 rounded-lg font-semibold text-[15px]">Log Out</button>
+             )}
+          </div>
+        )}
       </header>
 
       <div className='mx-auto min-h-screen max-w-7xl px-4 sm:px-6 lg:px-8'>
@@ -648,6 +784,8 @@ function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      <RecipeModal isOpen={recipeModalOpen} onClose={() => setRecipeModalOpen(false)} />
     </div>
   )
 }

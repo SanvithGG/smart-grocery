@@ -1,50 +1,33 @@
 import { useEffect, useState } from 'react'
-import { Search, Tag, Filter, Plus, Trash2, CheckCircle, Circle, Package } from 'lucide-react'
+import { Search, Tag, Filter, Trash2, CheckCircle, Package } from 'lucide-react'
 import { getApiErrorMessage } from '../api/client'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Input from '../components/ui/Input'
 import {
-  createGrocery,
   deleteGrocery,
-  getCatalog,
   getCategories,
   getGroceries,
   updateGrocery,
 } from '../services/groceryService'
 import { useSmartRules } from '../context/SmartRulesContext'
+import ActionBoard from '../components/ActionBoard'
 import { getNaturalExpiryDate, formatExpiryDate } from '../utils/expiry'
 
-const initialForm = {
-  name: '',
-  category: '',
-  quantity: 1,
-  purchased: false,
-  expiryDate: '',
-}
 
-const suggestionClasses =
-  'border-sky-100 hover:border-sky-300 hover:bg-sky-50/80'
-
-const suggestionCardStyle = {
-  background:
-    'linear-gradient(145deg, rgba(14,165,233,0.12), rgba(255,255,255,0.94) 58%, rgba(16,185,129,0.08))',
-}
 
 function InventoryPage() {
   const { rules } = useSmartRules()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
-  const [catalogItems, setCatalogItems] = useState([])
-  const [form, setForm] = useState(initialForm)
-  const [filters, setFilters] = useState({ category: '', search: '', purchased: '' })
+
+  const [filters, setFilters] = useState({ category: '', search: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
-  const naturalExpiryDate = form.purchased ? getNaturalExpiryDate(form.name, form.category, rules) : null
-  const displayedExpiryDate = form.expiryDate || naturalExpiryDate || ''
+
   const getExpectedExpiryDate = (item) =>
     item.expiryDate || getNaturalExpiryDate(item.name, item.category, rules) || ''
 
@@ -63,9 +46,7 @@ function InventoryPage() {
         params.search = currentFilters.search
       }
 
-      if (currentFilters.purchased !== '') {
-        params.purchased = currentFilters.purchased
-      }
+      params.purchased = true
 
       setItems(await getGroceries(params))
     } catch (requestError) {
@@ -83,23 +64,7 @@ function InventoryPage() {
     }
   }
 
-  const loadCatalogItems = async (category = '', search = '') => {
-    try {
-      const params = {}
 
-      if (category) {
-        params.category = category
-      }
-
-      if (search) {
-        params.search = search
-      }
-
-      setCatalogItems(await getCatalog(params))
-    } catch {
-      setCatalogItems([])
-    }
-  }
 
   useEffect(() => {
     const initializePage = async () => {
@@ -107,19 +72,16 @@ function InventoryPage() {
       setError('')
 
       try {
-        const [itemsData, categoriesData, catalogData] = await Promise.all([
+        const [itemsData, categoriesData] = await Promise.all([
           getGroceries(),
           getCategories(),
-          getCatalog(),
         ])
 
         setItems(itemsData)
         setCategories(categoriesData)
-        setCatalogItems(catalogData)
       } catch (requestError) {
         setError(getApiErrorMessage(requestError, 'Unable to load grocery items. Make sure the backend is running.'))
         setCategories([])
-        setCatalogItems([])
       } finally {
         setLoading(false)
       }
@@ -144,19 +106,15 @@ function InventoryPage() {
           params.search = filters.search
         }
 
-        if (filters.purchased !== '') {
-          params.purchased = filters.purchased
-        }
+        params.purchased = true
 
-        const [itemsData, categoriesData, catalogData] = await Promise.all([
+        const [itemsData, categoriesData] = await Promise.all([
           getGroceries(params),
           getCategories(),
-          getCatalog(),
         ])
 
         setItems(itemsData)
         setCategories(categoriesData)
-        setCatalogItems(catalogData)
       } catch (requestError) {
         setError(getApiErrorMessage(requestError, 'Unable to load grocery items. Make sure the backend is running.'))
       } finally {
@@ -171,21 +129,6 @@ function InventoryPage() {
     }
   }, [filters])
 
-  const handleFormChange = (event) => {
-    const { name, value, type, checked } = event.target
-    setForm((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }))
-  }
-
-  const handleFormPurchasedToggle = () => {
-    setForm((current) => ({
-      ...current,
-      purchased: !current.purchased,
-    }))
-  }
-
   const handleFilterChange = (event) => {
     const { name, value } = event.target
     const nextFilters = { ...filters, [name]: value }
@@ -193,73 +136,8 @@ function InventoryPage() {
     loadItems(nextFilters)
   }
 
-  const handleAddItem = async (event) => {
-    event.preventDefault()
-    setError('')
 
-    try {
-      await createGrocery({
-        ...form,
-        quantity: Number(form.quantity),
-        expiryDate: displayedExpiryDate || null,
-      })
 
-      setForm(initialForm)
-      loadItems()
-      loadCategoryOptions()
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Could not save this buying item. Check the values and try again.'))
-    }
-  }
-
-  const handleCategorySelect = (event) => {
-    const nextCategory = event.target.value
-    setForm((current) => ({
-      ...current,
-      category: nextCategory,
-      purchased: false,
-      expiryDate: '',
-    }))
-    loadCatalogItems(nextCategory, form.name)
-  }
-
-  const handleNameInput = (event) => {
-    const nextName = event.target.value
-    setForm((current) => ({
-      ...current,
-      name: nextName,
-      purchased: false,
-      expiryDate: '',
-    }))
-    loadCatalogItems(form.category, nextName)
-  }
-
-  const handleCatalogPick = (catalogItem) => {
-    setForm((current) => ({
-      ...initialForm,
-      quantity: current.quantity,
-      name: catalogItem.name,
-      category: catalogItem.category,
-    }))
-  }
-
-  const handleTogglePurchased = async (item) => {
-    setError('')
-    const nextPurchased = !item.purchased
-    const nextExpiryDate = nextPurchased ? item.expiryDate || null : null
-
-    try {
-      await updateGrocery(item.id, {
-        ...item,
-        purchased: nextPurchased,
-        expiryDate: nextExpiryDate,
-      })
-
-      loadItems()
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, 'Could not update item status.'))
-    }
-  }
 
   const requestDelete = (item) => {
     setConfirmDeleteItem(item)
@@ -300,106 +178,9 @@ function InventoryPage() {
         onClose={() => !deleteBusy && setConfirmDeleteItem(null)}
       />
 
-      <Card className="border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
-        <p className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">
-          <Plus size={14} /> Buy Item
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-          Add grocery item
-        </h2>
-        <p className="mt-3 max-w-lg text-sm text-slate-600">
-          Keep your kitchen inventory current so the app can surface reminders for items that are close
-          to expiring or expire today.
-        </p>
-
-        <form className="mt-6 space-y-4" onSubmit={handleAddItem}>
-          <Input
-            name="name"
-            value={form.name}
-            onChange={handleNameInput}
-            placeholder="Item name"
-            required
-          />
-
-          <Input
-            as="select"
-            name="category"
-            value={form.category}
-            onChange={handleCategorySelect}
-            required
-          >
-            <option value="">Select category</option>
-            {categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </Input>
-          <Input
-            name="quantity"
-            type="number"
-            min="1"
-            value={form.quantity}
-            onChange={handleFormChange}
-            placeholder="Quantity"
-            required
-          />
-
-          <Button
-            type="button"
-            onClick={handleFormPurchasedToggle}
-            className={`w-full rounded-2xl font-medium ${
-              form.purchased
-                ? 'border-sky-300 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-50'
-                : ''
-            }`}
-          >
-            {form.purchased ? 'Purchased' : 'Set As Purchased'}
-          </Button>
-
-          <Input
-            readOnly
-            value={formatExpiryDate(displayedExpiryDate, 'Select item details to preview expiry')}
-            inputClassName="bg-slate-50 text-slate-700"
-          />
-          <p className="text-xs text-slate-500">
-            {naturalExpiryDate
-              ? `Natural expiry date: ${formatExpiryDate(naturalExpiryDate, 'Select item details to preview expiry')}.`
-              : 'Expiry is calculated automatically from the item name or category once you mark it purchased.'}
-          </p>
-
-          <Button type="submit" variant="primary" size="lg" fullWidth className="rounded-2xl">
-            <Plus size={16} /> Save Item
-          </Button>
-        </form>
-
-        <div className="mt-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-              Quick Picks
-            </p>
-            <p className="text-xs text-slate-400">Choose one to fill the form</p>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {catalogItems.slice(0, 8).map((catalogItem) => (
-              <Button
-                key={`${catalogItem.category}-${catalogItem.name}`}
-                type="button"
-                onClick={() => handleCatalogPick(catalogItem)}
-                className={`rounded-2xl px-4 py-3 text-left transition ${suggestionClasses}`}
-                style={suggestionCardStyle}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-slate-900">{catalogItem.name}</p>
-                </div>
-                <p className="mt-1 text-xs uppercase tracking-[0.2em] text-slate-500">
-                  {catalogItem.category}
-                </p>
-              </Button>
-            ))}
-          </div>
-        </div>
-      </Card>
+      <div>
+        <ActionBoard />
+      </div>
 
       <Card className="border-white/60 bg-white/80 p-6 shadow-[0_15px_50px_rgba(15,23,42,0.08)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -440,20 +221,7 @@ function InventoryPage() {
                 ))}
               </Input>
             </div>
-            <div className="relative">
-              <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <Input
-                as="select"
-                name="purchased"
-                value={filters.purchased}
-                onChange={handleFilterChange}
-                inputClassName="py-3 pl-9 pr-4"
-              >
-                <option value="">All Status</option>
-                <option value="true">Purchased</option>
-                <option value="false">Pending</option>
-              </Input>
-            </div>
+
           </div>
         </div>
 
@@ -491,10 +259,10 @@ function InventoryPage() {
                       </span>
                     </div>
                     <p className="mt-2 text-sm text-slate-500">
-                      Quantity: {item.quantity} | Status: {item.purchased ? 'Purchased' : 'Pending'}
+                      Quantity: {item.quantity}
                     </p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {item.purchased ? 'Expiry date' : 'Expected expiry'}:{' '}
+                      Expiry date:{' '}
                       {formatExpiryDate(getExpectedExpiryDate(item), 'Select item details to preview expiry')}
                     </p>
                     {item.lastPurchasedAt && (
@@ -505,15 +273,7 @@ function InventoryPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <Button
-                      type="button"
-                      onClick={() => handleTogglePurchased(item)}
-                      variant="secondary"
-                      className="font-medium"
-                    >
-                      {item.purchased ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-slate-400" />}
-                      {item.purchased ? 'Move to Pending' : 'Mark as Bought'}
-                    </Button>
+
                     <Button
                       type="button"
                       onClick={() => requestDelete(item)}

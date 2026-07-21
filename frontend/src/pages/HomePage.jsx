@@ -14,6 +14,7 @@ import {
   getGroceries,
   getSellerProducts,
 } from '../services/groceryService'
+import { getSession } from '../utils/session'
 import { getNaturalExpiryDate, formatExpiryDate, normalizeKey } from '../utils/expiry'
 import { buildHomeSmartBuySuggestions } from '../utils/smartSuggestions'
 import { useSmartRules } from '../context/SmartRulesContext'
@@ -94,6 +95,8 @@ const resolveAvailability = (quantity) => {
 }
 
 function HomePage() {
+  const { token } = getSession()
+  const isLoggedIn = !!token
   const toast = useToast()
   const navigate = useNavigate()
   const { rules } = useSmartRules()
@@ -145,17 +148,26 @@ function HomePage() {
     setError('')
 
     try {
-        const [itemsData, categoriesData, catalogData, sellerProductsData] = await Promise.all([
-          getGroceries(),
+        const fetchPromises = [
           getCategories(),
           getCatalog(catalogFilters),
           getSellerProducts(),
-        ])
+        ]
+        
+        if (isLoggedIn) {
+          fetchPromises.push(getGroceries())
+        }
 
-        setMyItems(itemsData)
-        setCatalogCategories(categoriesData)
-        setCatalogItems(catalogData)
-        setSellerProducts(sellerProductsData)
+        const results = await Promise.all(fetchPromises)
+
+        setCatalogCategories(results[0])
+        setCatalogItems(results[1])
+        setSellerProducts(results[2])
+        if (isLoggedIn) {
+          setMyItems(results[3])
+        } else {
+          setMyItems([])
+        }
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Unable to load home data right now.'))
     }
@@ -166,6 +178,10 @@ function HomePage() {
   }, [searchParams])
 
   const handleOpenQuickAdd = (item) => {
+    if (!isLoggedIn) {
+      navigate('/login')
+      return
+    }
     setQuickAddTarget(item)
     setQuickAddDraft(initialQuickAddDraft)
     setError('')
@@ -258,6 +274,10 @@ function HomePage() {
   }
 
   const handleOpenSellerOrder = (product) => {
+    if (!isLoggedIn) {
+      navigate('/login')
+      return
+    }
     setSellerOrderTarget(product)
     setSellerPaymentDraft(initialSellerPaymentDraft)
     setSellerPaymentProcessing(false)
@@ -652,19 +672,19 @@ function HomePage() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               to="/dashboard"
-              className="inline-flex items-center justify-center rounded-full border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
               Open Dashboard
             </Link>
             <Link
               to="/shopping-list"
-              className="rounded-full border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
             >
               Buy Queue
             </Link>
             <Link
               to="/inventory"
-              className="rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
             >
               Manage Inventory
             </Link>
