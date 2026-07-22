@@ -16,8 +16,19 @@ export async function getCatalog(params) {
 }
 
 export async function getSellerProducts() {
-  const { data } = await api.get('/api/grocery/seller-products')
-  return data
+  const token = localStorage.getItem('token')
+  if (!token) {
+    return getPublicSellerProducts()
+  }
+  try {
+    const { data } = await api.get('/api/grocery/seller-products')
+    return data
+  } catch (error) {
+    if (error?.response?.status === 401) {
+      return getPublicSellerProducts()
+    }
+    throw error
+  }
 }
 
 export async function getPublicCatalog(params) {
