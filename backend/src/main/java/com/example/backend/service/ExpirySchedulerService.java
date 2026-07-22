@@ -38,7 +38,7 @@ public class ExpirySchedulerService {
     public void performExpiryScan() {
         LocalDate today = LocalDate.now();
         List<GroceryItem> allPurchased = groceryRepository.findAll().stream()
-                .filter(GroceryItem::isPurchased)
+                .filter(item -> item != null && item.isPurchased())
                 .toList();
 
         int expiringCount = 0;
