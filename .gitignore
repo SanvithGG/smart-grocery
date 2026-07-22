@@ -15,6 +15,7 @@ yarn-error.log*
 pnpm-debug.log*
 frontend/dist/
 frontend/.env
+!frontend/.env.production
 *.env.local
 
 # Java / Maven
