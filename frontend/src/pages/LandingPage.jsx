@@ -174,14 +174,14 @@ function BrowserMockup() {
 
 function LandingPage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-white text-slate-950">
+    <main className="min-h-screen overflow-x-clip bg-white text-slate-950">
       <section className="relative mx-auto min-h-screen max-w-[1180px] px-5 py-5 sm:px-8">
         <div className="pointer-events-none absolute -left-28 top-24 h-48 w-48 rounded-full bg-sky-100" />
         <div className="pointer-events-none absolute -right-20 top-28 h-72 w-72 rounded-full bg-sky-100" />
         <div className="pointer-events-none absolute right-16 top-44 h-56 w-56 rounded-full bg-sky-500/10" />
         <div className="pointer-events-none absolute right-0 top-28 hidden h-60 w-80 bg-[linear-gradient(90deg,rgba(14,165,233,0.12)_1px,transparent_1px),linear-gradient(180deg,rgba(14,165,233,0.12)_1px,transparent_1px)] bg-[size:22px_22px] lg:block" />
 
-        <header className="relative z-10 flex items-center justify-between rounded-full bg-white/90 px-4 py-3 shadow-[0_12px_38px_rgba(15,23,42,0.08)] backdrop-blur">
+        <header className="sticky top-4 z-50 flex items-center justify-between rounded-full bg-white/90 px-4 py-3 shadow-[0_12px_38px_rgba(15,23,42,0.08)] backdrop-blur">
           <Link to="/" className="flex items-center gap-2">
             <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
               <ShoppingBasket className="h-5 w-5" />
