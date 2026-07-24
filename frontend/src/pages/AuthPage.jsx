@@ -340,30 +340,7 @@ function AuthPage({ mode }) {
             </Button>
           </form>
 
-          {isLogin && (
-            <div className="mt-5">
-              <div className="mb-4 flex items-center gap-3">
-                <span className="h-px flex-1 bg-slate-200" />
-                <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                  {t('Or')}
-                </span>
-                <span className="h-px flex-1 bg-slate-200" />
-              </div>
-
-              {googleClientId ? (
-                <div
-                  ref={googleButtonRef}
-                  className={`mx-auto flex min-h-11 w-full justify-center ${
-                    googleLoading || loading ? 'pointer-events-none opacity-60' : ''
-                  }`}
-                />
-              ) : (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  {t('Add VITE_GOOGLE_CLIENT_ID in frontend/.env to enable Google login.')}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Google Login disabled */}
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
             <p>
