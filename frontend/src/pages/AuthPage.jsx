@@ -67,7 +67,9 @@ function AuthPage({ mode }) {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const googleButtonRef = useRef(null)
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const googleClientId =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    '651753902616-0hh905k6l498q9dsc0qog0r4lkm5bt0b.apps.googleusercontent.com'
 
   const handleChange = (event) => {
     const { name, value } = event.target
