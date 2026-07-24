@@ -116,3 +116,14 @@ export async function uploadImage(file) {
   })
   return data
 }
+
+export async function searchPriceCompare(payload) {
+  const { data } = await api.post('/api/price-compare/search', payload)
+  return data
+}
+
+export async function getPriceAnalytics() {
+  const { data } = await api.get('/api/price-compare/analytics')
+  return data
+}
+

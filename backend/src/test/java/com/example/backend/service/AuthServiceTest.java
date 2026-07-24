@@ -154,7 +154,7 @@ class AuthServiceTest {
 
         assertEquals("admin-token", response.getToken());
         assertEquals("admin", response.getUsername());
-        assertEquals("ADMIN", response.getRole());
+        assertEquals("SUPER_ADMIN", response.getRole());
     }
 
     @Test

@@ -224,11 +224,7 @@ function AppShell() {
 
         const nextNotifications = buildNotifications(itemsResponse, expiryAlertsResponse)
         setNotifications(nextNotifications)
-
-        if (nextNotifications.length > 0) {
-          setPopupStartedAt(Date.now())
-          setPopupOpen(true)
-        }
+        // Notifications are accessible via the bell icon — no auto-popup
       })
       .catch(() => {
         if (!cancelled) {
@@ -492,7 +488,6 @@ function AppShell() {
           <div className="hidden md:flex items-center gap-3 shrink-0">
               <div className='flex items-center gap-4 mr-2 text-[14px] font-semibold text-slate-700'>
                 <button className='bg-slate-900 text-white px-4 py-2 rounded-lg hover:bg-slate-800 transition whitespace-nowrap'>Be Pro</button>
-                <button onClick={() => setRecipeModalOpen(true)} className='border border-slate-300 bg-white text-slate-900 px-4 py-2 rounded-lg hover:bg-slate-50 transition whitespace-nowrap'>Submit Recipe</button>
               </div>
 
               <div className='relative' ref={bellRef}>
@@ -712,7 +707,14 @@ function AppShell() {
             ))}
           </div>
           
-          <div className='flex items-center shrink-0 pl-4'>
+          <div className='flex items-center shrink-0 pl-4 gap-3'>
+            <button 
+              onClick={() => setRecipeModalOpen(true)} 
+              className='border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 px-4 py-2 rounded-xl transition whitespace-nowrap flex items-center gap-1.5 font-bold text-xs shadow-sm'
+            >
+              ✨ Smart Price Compare
+            </button>
+
             {activeFilterCount > 0 && (
               <div className='flex items-center gap-3 mr-2'>
                 <span className='flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white text-[11px] font-bold'>
@@ -768,7 +770,7 @@ function AppShell() {
              <div className="h-px bg-slate-200 my-1" />
 
              <button className='w-full bg-slate-900 text-white px-4 py-3.5 rounded-lg font-semibold text-[15px]'>Be Pro</button>
-             <button onClick={() => { setRecipeModalOpen(true); setMenuOpen(false); }} className='w-full border border-slate-300 bg-white text-slate-900 px-4 py-3.5 rounded-lg font-semibold text-[15px]'>Submit Recipe</button>
+              <button onClick={() => { setRecipeModalOpen(true); setMenuOpen(false); }} className='w-full border border-slate-300 bg-white text-slate-900 px-4 py-3.5 rounded-lg font-semibold text-[15px] flex items-center justify-center gap-1.5'>✨ Smart Price Compare</button>
              
              {!isLoggedIn ? (
                 <NavLink to="/login" onClick={() => setMenuOpen(false)} className="flex items-center justify-center w-full bg-sky-50 text-sky-700 px-4 py-3.5 rounded-lg font-semibold text-[15px]">Log in / Sign up</NavLink>

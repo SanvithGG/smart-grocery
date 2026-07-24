@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/grocery/categories").permitAll()
                         .requestMatchers("/api/grocery/smart-rules").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/price-compare/**").permitAll()
                         .requestMatchers("/api/seller/**").hasAnyRole("SELLER", "SUPER_ADMIN")
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated());

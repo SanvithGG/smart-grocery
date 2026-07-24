@@ -12,6 +12,7 @@ import {
   getGroceries, 
   deleteGrocery, 
 } from '../services/groceryService'
+import StoreLogoBadge from '../components/ui/StoreLogoBadge'
 
 const DISMISSED_ITEMS_STORAGE_KEY = 'smart-grocery-shopping-list-dismissed'
 const LOW_STOCK_THRESHOLD = 2
@@ -260,24 +261,71 @@ function ShoppingListPage() {
               </p>
             )}
 
-            {!loading && manualItems.map((item) => (
-              <article key={item.id} className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-lg font-semibold text-slate-900">{item.name}</p>
-                    <p className="text-sm text-slate-500">{item.category} | Qty {item.quantity}</p>
+            {!loading && manualItems.map((item) => {
+              // Parse store name & price if formatted from Price Compare
+              const match = item.name.match(/\((Blinkit|Swiggy Instamart|Zepto|Amazon India|Amazon|Flipkart|BigBasket)\s*-\s*₹?(\d+(?:\.\d+)?)\)/i)
+              const storeName = match ? match[1] : null
+              const storePrice = match ? match[2] : null
+
+              const cleanName = storeName ? item.name.replace(/\s*\([^)]*\)/, '') : item.name
+              const searchEncoded = encodeURIComponent(cleanName)
+
+              let storeUrl = null
+              if (storeName) {
+                const sLower = storeName.toLowerCase()
+                if (sLower.includes('blinkit')) storeUrl = `https://blinkit.com/s/?q=${searchEncoded}`
+                else if (sLower.includes('swiggy') || sLower.includes('instamart')) storeUrl = `https://www.swiggy.com/instamart/search?query=${searchEncoded}`
+                else if (sLower.includes('zepto')) storeUrl = `https://www.zepto.com/search?query=${searchEncoded}`
+                else if (sLower.includes('amazon')) storeUrl = `https://www.amazon.in/s?k=${searchEncoded}`
+                else if (sLower.includes('flipkart')) storeUrl = `https://www.flipkart.com/search?q=${searchEncoded}`
+                else if (sLower.includes('bigbasket')) storeUrl = `https://www.bigbasket.com/ps/?q=${searchEncoded}`
+              }
+
+              return (
+                <article key={item.id} className="rounded-3xl border border-slate-100 bg-slate-50 px-5 py-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-semibold text-slate-900">{cleanName}</p>
+                      <p className="text-sm text-slate-500">{item.category} | Qty {item.quantity}</p>
+                    </div>
+                    {storeName && (
+                      <div className="flex items-center gap-2">
+                        <StoreLogoBadge storeName={storeName} />
+                        {storePrice && (
+                          <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                            ₹{storePrice}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button type="button" onClick={() => handleMarkPurchased(item, false)} disabled={updatingItemId === item.id} variant="success">
-                      {updatingItemId === item.id ? '...' : 'Bought'}
-                    </Button>
-                    <Button type="button" onClick={() => setConfirmDeleteItem(item)} variant="danger">
-                      <Trash2 size={14} />
-                    </Button>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                    {storeUrl ? (
+                      <a
+                        href={storeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 rounded-xl text-xs font-bold transition shadow-sm"
+                      >
+                        Order on {storeName} ↗
+                      </a>
+                    ) : (
+                      <span className="text-xs text-slate-400 font-medium">In Buy Queue</span>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button type="button" onClick={() => handleMarkPurchased(item, false)} disabled={updatingItemId === item.id} variant="success">
+                        {updatingItemId === item.id ? '...' : 'Bought'}
+                      </Button>
+                      <Button type="button" onClick={() => setConfirmDeleteItem(item)} variant="danger">
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         </Card>
 

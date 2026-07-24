@@ -10,6 +10,7 @@ import HomePage from './pages/HomePage'
 import InventoryPage from './pages/InventoryPage'
 import ShoppingListPage from './pages/ShoppingListPage'
 import SettingsPage from './pages/SettingsPage'
+import PriceComparePage from './pages/PriceComparePage'
 
 // Lazy loaded Admin modules
 const AdminCategoriesPage = React.lazy(() => import('./pages/AdminCategoriesPage'))
@@ -48,6 +49,7 @@ function App() {
 
           <Route element={<AppShell />}>
             <Route path="/" element={<HomePage />} />
+            <Route path="/price-compare" element={<PriceComparePage />} />
           </Route>
 
           <Route element={<ProtectedRoute requiredRole="USER" redirectTo="/login" />}>

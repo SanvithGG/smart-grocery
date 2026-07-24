@@ -15,6 +15,13 @@ import java.time.LocalDateTime;
 @Table(name = "catalog_stocks")
 public class CatalogStock {
 
+    public CatalogStock(String name, String category, int quantity) {
+        this.name = name;
+        this.category = category;
+        this.quantity = quantity;
+        this.updatedAt = LocalDateTime.now();
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

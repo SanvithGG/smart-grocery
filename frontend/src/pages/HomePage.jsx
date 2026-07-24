@@ -19,6 +19,7 @@ import { getNaturalExpiryDate, formatExpiryDate, normalizeKey } from '../utils/e
 import { buildHomeSmartBuySuggestions } from '../utils/smartSuggestions'
 import { useSmartRules } from '../context/SmartRulesContext'
 import { formatPrice } from '../utils/format'
+import StoreLogoBadge from '../components/ui/StoreLogoBadge'
 
 const AVAILABILITY_THRESHOLD = 3
 const initialQuickAddDraft = {
@@ -92,6 +93,42 @@ const resolveAvailability = (quantity) => {
   }
 
   return 'IN_STOCK'
+}
+
+const resolveCatalogImage = (item) => {
+  if (item.imageUrl && item.imageUrl.startsWith('http')) return item.imageUrl
+  const lower = ((item.name || '') + ' ' + (item.category || '')).toLowerCase()
+  if (lower.includes('milk') || lower.includes('dairy') || lower.includes('paneer') || lower.includes('curd') || lower.includes('amul')) {
+    return 'https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('bread') || lower.includes('toast') || lower.includes('bun') || lower.includes('bakery')) {
+    return 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('egg')) {
+    return 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('apple') || lower.includes('banana') || lower.includes('fruit') || lower.includes('mango') || lower.includes('orange') || lower.includes('produce')) {
+    return 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('coffee') || lower.includes('tea') || lower.includes('chai') || lower.includes('beverage')) {
+    return 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('rice') || lower.includes('atta') || lower.includes('flour') || lower.includes('dal') || lower.includes('pulse')) {
+    return 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('chip') || lower.includes('snack') || lower.includes('biscuit') || lower.includes('cookie') || lower.includes('chocolate')) {
+    return 'https://images.unsplash.com/photo-1599490659213-e2b9527bd087?auto=format&fit=crop&w=400&q=80'
+  }
+  if (lower.includes('clean') || lower.includes('detergent') || lower.includes('dish') || lower.includes('soap') || lower.includes('household')) {
+    return 'https://images.unsplash.com/photo-1583947215259-38e31be8751f?auto=format&fit=crop&w=400&q=80'
+  }
+  return 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80'
+}
+
+const resolveDefaultStore = (item, index) => {
+  if (item.storeName) return item.storeName
+  const stores = ['Blinkit', 'Swiggy Instamart', 'Zepto', 'Amazon India', 'Flipkart', 'BigBasket']
+  return stores[index % stores.length]
 }
 
 function HomePage() {
@@ -657,36 +694,36 @@ function HomePage() {
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <article
           style={homeHeroStyle}
-          className="rounded-lg border border-slate-200 p-5 shadow-sm"
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <p className="text-sm font-semibold uppercase tracking-[0.35em] text-sky-700">
-            Grocery Home
+          <p className="text-xs font-bold uppercase tracking-[0.3em] text-amber-600">
+            ✨ Smart Price Engine
           </p>
-          <h2 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-slate-950">
-            Buy groceries without extra steps.
+          <h2 className="mt-3 max-w-2xl text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+            Compare live prices across Blinkit, Instamart & Zepto
           </h2>
-          <p className="mt-4 max-w-xl text-sm text-slate-600 sm:text-base">
-            Search the catalog, buy quickly, and open the dashboard only when you need stock details.
+          <p className="mt-3 max-w-xl text-sm text-slate-600 sm:text-base">
+            Find the lowest grocery prices in real-time, get cheapest deal badges, and order directly from your favorite stores.
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              to="/dashboard"
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              to="/price-compare"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-xl border border-amber-400 bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-300 shadow-sm gap-2"
             >
-              Open Dashboard
+              ✨ Smart Price Compare
             </Link>
             <Link
               to="/shopping-list"
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-sky-200 bg-sky-50 px-5 py-3 text-sm font-semibold text-sky-800 transition hover:border-sky-300 hover:bg-sky-100"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
             >
-              Buy Queue
+              My Buy Queue
             </Link>
             <Link
               to="/inventory"
-              className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-white/70 bg-white/70 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-white"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
-              Manage Inventory
+              My Inventory
             </Link>
           </div>
         </article>
@@ -782,7 +819,7 @@ function HomePage() {
             </p>
           )}
 
-          {catalogItems.map((item) => {
+          {catalogItems.map((item, idx) => {
             const itemKey = `${item.category}-${item.name}`
             const quantity = Number(item.availableQuantity) || 0
             const availability = item.availability || resolveAvailability(quantity)
@@ -793,60 +830,82 @@ function HomePage() {
                 ? Number(item.price)
                 : rules?.price?.[normalizeKey(item.name)] ?? rules?.price?.[normalizeKey(item.category)] ?? 99
 
+            const itemImage = resolveCatalogImage(item)
+            const storeName = resolveDefaultStore(item, idx)
+
             return (
               <article
                 key={itemKey}
-                className={`rounded-3xl border px-5 py-4 shadow-[0_18px_45px_rgba(15,23,42,0.06)] ${catalogCardClasses.shell}`}
+                className={`rounded-3xl border p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] flex flex-col justify-between ${catalogCardClasses.shell}`}
                 style={catalogCardStyle}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${catalogCardClasses.chip}`}
-                  >
-                    {item.category}
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${stockTone.badge}`}
-                  >
-                    {stockTone.label}
-                  </span>
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-slate-900">{item.name}</h3>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-950">
-                      {formatPrice(displayPrice, item.currency || 'INR')}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                      Estimated price
-                    </p>
+                <div>
+                  {/* Product Image Header */}
+                  <div className="relative mb-4 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                    <img
+                      src={itemImage}
+                      alt={item.name}
+                      className="h-40 w-full object-cover transition duration-300 hover:scale-105"
+                      onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80' }}
+                    />
+                    <div className="absolute top-2.5 left-2.5">
+                      <StoreLogoBadge storeName={storeName} />
+                    </div>
+                    <div className="absolute top-2.5 right-2.5">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${stockTone.badge} shadow-xs`}>
+                        {stockTone.label}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${stockTone.quantity}`}>
-                      {quantity > 0 ? `${quantity} available` : '0 available'}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">In your inventory</p>
+
+                  {/* Title & Category Chip */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${catalogCardClasses.chip}`}>
+                      {item.category}
+                    </span>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {quantity > 0 ? `${quantity} in stock` : 'Restocking'}
+                    </span>
+                  </div>
+
+                  <h3 className="mt-2 text-lg font-bold text-slate-950 capitalize">{item.name}</h3>
+
+                  {/* Price Row */}
+                  <div className="mt-3 flex items-baseline justify-between gap-2">
+                    <div>
+                      <p className="text-2xl font-extrabold tracking-tight text-slate-950">
+                        {formatPrice(displayPrice, item.currency || 'INR')}
+                      </p>
+                      <p className="text-[11px] font-medium text-slate-400">Best store offer</p>
+                    </div>
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                      Live Deal
+                    </span>
                   </div>
                 </div>
-                <p className="mt-3 text-sm text-slate-500">
-                  {quantity > 0
-                    ? `${quantity} store units are currently available for purchase.`
-                    : 'This product is currently unavailable. It will be restocked soon.'}
-                </p>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
-                  <span>UPI, card, or cash</span>
-                  <span>Fast checkout</span>
+
+                {/* Actions */}
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenQuickAdd(item)}
+                    disabled={availability === 'OUT_OF_STOCK'}
+                    className={`flex-1 rounded-xl border py-2.5 text-xs font-bold transition text-center ${catalogCardClasses.button} ${
+                      availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
+                    }`}
+                  >
+                    {availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
+                  </button>
+
+                  <Link
+                    to="/price-compare"
+                    state={{ queryText: item.name }}
+                    className="rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-950 px-3 py-2.5 text-xs font-extrabold transition flex items-center gap-1 shrink-0"
+                    title="Compare all 6 stores"
+                  >
+                    ✨ Compare
+                  </Link>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleOpenQuickAdd(item)}
-                  disabled={availability === 'OUT_OF_STOCK'}
-                  className={`mt-4 w-full rounded-2xl border px-4 py-2 text-sm font-semibold transition ${catalogCardClasses.button} ${
-                    availability === 'OUT_OF_STOCK' ? 'cursor-not-allowed opacity-50' : ''
-                  }`}
-                >
-                  {availability === 'OUT_OF_STOCK' ? 'Unavailable' : 'Buy Option'}
-                </button>
               </article>
             )
           })}

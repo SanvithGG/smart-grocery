@@ -10,7 +10,9 @@ import com.example.backend.entity.User;
 import com.example.backend.entity.UserRole;
 import com.example.backend.exception.ConflictException;
 import com.example.backend.exception.ResourceNotFoundException;
+import com.example.backend.repository.CatalogStockRepository;
 import com.example.backend.repository.GroceryRepository;
+import com.example.backend.repository.SmartRuleRepository;
 import com.example.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +47,12 @@ class GroceryServiceTest {
     @Mock
     private GeminiCatalogService geminiCatalogService;
 
+    @Mock
+    private CatalogStockRepository catalogStockRepository;
+
+    @Mock
+    private SmartRuleRepository smartRuleRepository;
+
     @InjectMocks
     private GroceryService groceryService;
 
@@ -68,6 +76,10 @@ class GroceryServiceTest {
     void getCategoriesMergesDefaultCatalogWithUserCategoriesAndSortsDistinctValues() {
         User user = user(1L, "sanvi");
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                new com.example.backend.entity.CatalogStock("Bread", "Bakery", 10),
+                new com.example.backend.entity.CatalogStock("Milk", "Dairy", 10)
+        ));
         when(groceryRepository.findByUserId(1L)).thenReturn(List.of(
                 item(1L, "Spinach", "Vegetables", 1, false, null, null, user),
                 item(2L, "Yogurt", "Dairy", 1, false, null, null, user),
@@ -84,6 +96,17 @@ class GroceryServiceTest {
 
     @Test
     void getCatalogItemsFiltersByCategoryAndSearchAndReturnsSortedResults() {
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                new com.example.backend.entity.CatalogStock("Onions", "Vegetables", 6),
+                new com.example.backend.entity.CatalogStock("Potatoes", "Vegetables", 14),
+                new com.example.backend.entity.CatalogStock("Tomatoes", "Vegetables", 11)
+        ));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Onions", "Vegetables"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Onions", "Vegetables", 6)));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Potatoes", "Vegetables"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Potatoes", "Vegetables", 14)));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Tomatoes", "Vegetables"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Tomatoes", "Vegetables", 11)));
         when(geminiCatalogService.getCatalogSuggestions("Vegetables", "o")).thenReturn(List.of());
 
         List<CatalogItemResponse> catalogItems = groceryService.getCatalogItems("sanvi", "Vegetables", "o");
@@ -123,6 +146,11 @@ class GroceryServiceTest {
         GroceryItem newItem = item(null, "Milk", "Dairy", 2, true, LocalDate.now().plusDays(2), null, null);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Milk", "Dairy"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Milk", "Dairy", 8)));
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                new com.example.backend.entity.CatalogStock("Milk", "Dairy", 6)
+        ));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         groceryService.addItem("sanvi", newItem);
@@ -142,6 +170,8 @@ class GroceryServiceTest {
         GroceryItem newItem = item(null, "Milk", "Dairy", 2, true, null, null, null);
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Milk", com.example.backend.entity.SmartRule.RuleType.EXPIRY))
+                .thenReturn(Optional.of(new com.example.backend.entity.SmartRule(null, "Milk", com.example.backend.entity.SmartRule.RuleType.EXPIRY, "3")));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         GroceryItem saved = groceryService.addItem("sanvi", newItem);
@@ -294,6 +324,11 @@ class GroceryServiceTest {
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Coffee", "Beverages"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Coffee", "Beverages", 4)));
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                new com.example.backend.entity.CatalogStock("Coffee", "Beverages", 2)
+        ));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         groceryService.updateItem("sanvi", 10L, updated);
@@ -313,6 +348,11 @@ class GroceryServiceTest {
         GroceryItem existing = item(10L, "Eggs", "Dairy", 3, false, null, null, user);
 
         when(groceryRepository.findById(10L)).thenReturn(Optional.of(existing));
+        when(catalogStockRepository.findByNameIgnoreCaseAndCategoryIgnoreCase("Eggs", "Dairy"))
+                .thenReturn(Optional.of(new com.example.backend.entity.CatalogStock("Eggs", "Dairy", 12)));
+        when(catalogStockRepository.findAll()).thenReturn(List.of(
+                new com.example.backend.entity.CatalogStock("Eggs", "Dairy", 9)
+        ));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         GroceryItem fulfilled = groceryService.fulfillPendingPurchase(10L);
@@ -336,6 +376,8 @@ class GroceryServiceTest {
 
         when(userRepository.findByUsername("sanvi")).thenReturn(Optional.of(user));
         when(groceryRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(existing));
+        when(smartRuleRepository.findByItemKeyIgnoreCaseAndType("Milk", com.example.backend.entity.SmartRule.RuleType.EXPIRY))
+                .thenReturn(Optional.of(new com.example.backend.entity.SmartRule(null, "Milk", com.example.backend.entity.SmartRule.RuleType.EXPIRY, "3")));
         when(groceryRepository.save(any(GroceryItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         GroceryItem saved = groceryService.updateItem("sanvi", 10L, updated);
