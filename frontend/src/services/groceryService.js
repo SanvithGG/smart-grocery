@@ -127,3 +127,7 @@ export async function getPriceAnalytics() {
   return data
 }
 
+export async function optimizeBasket(products) {
+  const { data } = await api.post('/api/price-compare/optimize-basket', products)
+  return data
+}

@@ -7,6 +7,7 @@ import Button from '../components/ui/Button'
 import { useToast } from '../components/ui/toast'
 import { getSession } from '../utils/session'
 import StoreLogoBadge from '../components/ui/StoreLogoBadge'
+import SmartBasketOptimizer from '../components/SmartBasketOptimizer'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const resolveDirectStoreProductUrl = (site, productTitle, rawUrl) => {
@@ -74,7 +75,8 @@ export default function PriceComparePage() {
     try {
       const data = await getPriceAnalytics()
       setAnalytics(data)
-    } catch (ignored) {
+    } catch {
+      // ignore
     }
   }
 
@@ -117,6 +119,11 @@ export default function PriceComparePage() {
     }))
   }
 
+  const handleApplyStrategy = (type, selectionMap) => {
+    setSelectedOffers(selectionMap)
+    toast.success(type === 'WHOLE_CART' ? 'Applied All-in-One Cart strategy!' : 'Applied Maximum Savings Split strategy!')
+  }
+
   const handleAddToBuyQueue = async () => {
     if (!requireLogin()) return
     const selectedList = Object.entries(selectedOffers).map(([pIdx, offer]) => {
@@ -148,7 +155,7 @@ export default function PriceComparePage() {
 
       toast.success(`Added ${selectedList.length} items to your Buy Queue!`)
       navigate('/shopping-list')
-    } catch (error) {
+    } catch {
       toast.error('Failed to add items to Buy Queue.')
     } finally {
       setAddingToQueue(false)
@@ -199,6 +206,16 @@ export default function PriceComparePage() {
           </form>
         </div>
       </div>
+
+      {/* Smart Basket Optimizer */}
+      {results.length > 0 && !loading && (
+        <SmartBasketOptimizer
+          products={results}
+          selectedOffers={selectedOffers}
+          onApplyStrategy={handleApplyStrategy}
+          onBatchAddToQueue={handleAddToBuyQueue}
+        />
+      )}
 
       {/* Main Content Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

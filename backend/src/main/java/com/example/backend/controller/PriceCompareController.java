@@ -1,5 +1,6 @@
 package com.example.backend.controller;
 
+import com.example.backend.dto.BasketOptimizationResponse;
 import com.example.backend.dto.CatalogItemResponse;
 import com.example.backend.dto.CompareRequest;
 import com.example.backend.dto.ProductCompareResponse;
@@ -81,5 +82,10 @@ public class PriceCompareController {
                 "orderCount", orders.size(),
                 "categorySpend", categorySpend
         );
+    }
+
+    @PostMapping("/optimize-basket")
+    public BasketOptimizationResponse optimizeBasket(@RequestBody List<ProductCompareResponse> products) {
+        return priceCompareService.optimizeBasket(products);
     }
 }

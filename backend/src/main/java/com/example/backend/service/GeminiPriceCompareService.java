@@ -1,7 +1,11 @@
 package com.example.backend.service;
 
+import com.example.backend.dto.BasketOptimizationResponse;
 import com.example.backend.dto.PriceOptionDto;
 import com.example.backend.dto.ProductCompareResponse;
+import com.example.backend.dto.SplitBasketDto;
+import com.example.backend.dto.SplitStoreBucketDto;
+import com.example.backend.dto.StoreBasketDto;
 import com.example.backend.entity.PriceCache;
 import com.example.backend.repository.PriceCacheRepository;
 
@@ -382,5 +386,182 @@ public class GeminiPriceCompareService {
             return "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?auto=format&fit=crop&w=400&q=80";
         }
         return "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=400&q=80";
+    }
+
+    public BasketOptimizationResponse optimizeBasket(List<ProductCompareResponse> products) {
+        if (products == null || products.isEmpty()) {
+            return new BasketOptimizationResponse("WHOLE_CART", "No Products to Optimize", "Add products to compare whole cart vs split order.", 0.0, null, List.of(), null);
+        }
+
+        List<ProductCompareResponse> validProducts = products.stream()
+                .filter(p -> p != null && p.getOptions() != null && !p.getOptions().isEmpty())
+                .collect(Collectors.toList());
+
+        if (validProducts.isEmpty()) {
+            return new BasketOptimizationResponse("WHOLE_CART", "No Store Pricing Available", "Could not find pricing options for the specified items.", 0.0, null, List.of(), null);
+        }
+
+        int totalProducts = validProducts.size();
+
+        Set<String> storeNames = new LinkedHashSet<>();
+        List<String> canonicalStores = List.of("Zepto", "Blinkit", "Swiggy Instamart", "Amazon India", "Flipkart", "BigBasket");
+        storeNames.addAll(canonicalStores);
+
+        for (ProductCompareResponse prod : validProducts) {
+            for (PriceOptionDto opt : prod.getOptions()) {
+                if (opt != null && opt.getSite() != null && !opt.getSite().isBlank()) {
+                    storeNames.add(opt.getSite().trim());
+                }
+            }
+        }
+
+        List<StoreBasketDto> allSingleStores = new ArrayList<>();
+
+        for (String storeName : storeNames) {
+            List<PriceOptionDto> matchedItems = new ArrayList<>();
+            List<String> missingProductNames = new ArrayList<>();
+            double subtotal = 0.0;
+
+            for (ProductCompareResponse prod : validProducts) {
+                PriceOptionDto match = prod.getOptions().stream()
+                        .filter(opt -> opt != null && opt.getSite() != null && opt.getSite().trim().equalsIgnoreCase(storeName))
+                        .findFirst()
+                        .orElse(null);
+
+                if (match != null && match.getPrice() > 0) {
+                    matchedItems.add(match);
+                    subtotal += match.getPrice();
+                } else {
+                    missingProductNames.add(prod.getProductName());
+                }
+            }
+
+            if (!matchedItems.isEmpty()) {
+                int itemsAvailable = matchedItems.size();
+                boolean isComplete = (itemsAvailable == totalProducts);
+                double deliveryFee = (subtotal >= 199.0 || subtotal == 0) ? 0.0 : 25.0;
+                double platformFee = (subtotal > 0) ? 5.0 : 0.0;
+                double totalCost = round(subtotal + deliveryFee + platformFee);
+
+                allSingleStores.add(new StoreBasketDto(
+                        storeName,
+                        itemsAvailable,
+                        totalProducts,
+                        round(subtotal),
+                        deliveryFee,
+                        platformFee,
+                        totalCost,
+                        isComplete,
+                        matchedItems,
+                        missingProductNames
+                ));
+            }
+        }
+
+        allSingleStores.sort((a, b) -> {
+            if (a.getIsCompleteCoverage() != b.getIsCompleteCoverage()) {
+                return Boolean.compare(b.getIsCompleteCoverage(), a.getIsCompleteCoverage());
+            }
+            if (a.getItemsAvailable() != b.getItemsAvailable()) {
+                return Integer.compare(b.getItemsAvailable(), a.getItemsAvailable());
+            }
+            return Double.compare(a.getTotalCost(), b.getTotalCost());
+        });
+
+        StoreBasketDto bestSingleStore = allSingleStores.isEmpty() ? null : allSingleStores.get(0);
+
+        Map<String, List<PriceOptionDto>> storeBucketsMap = new LinkedHashMap<>();
+        for (ProductCompareResponse prod : validProducts) {
+            PriceOptionDto cheapest = prod.getOptions().stream()
+                    .filter(opt -> opt != null && opt.getPrice() > 0)
+                    .min(Comparator.comparingDouble(PriceOptionDto::getPrice))
+                    .orElse(null);
+
+            if (cheapest != null) {
+                String store = cheapest.getSite() != null ? cheapest.getSite().trim() : "Store";
+                storeBucketsMap.computeIfAbsent(store, k -> new ArrayList<>()).add(cheapest);
+            }
+        }
+
+        List<SplitStoreBucketDto> splitBuckets = new ArrayList<>();
+        double splitItemsSubtotal = 0.0;
+        double splitDeliveryFees = 0.0;
+        double splitPlatformFees = 0.0;
+
+        for (Map.Entry<String, List<PriceOptionDto>> entry : storeBucketsMap.entrySet()) {
+            String bucketStore = entry.getKey();
+            List<PriceOptionDto> bucketItems = entry.getValue();
+            double bucketSubtotal = bucketItems.stream().mapToDouble(PriceOptionDto::getPrice).sum();
+            double bucketDelivery = (bucketSubtotal >= 199.0 || bucketSubtotal == 0) ? 0.0 : 25.0;
+            double bucketPlatform = 5.0;
+            double bucketTotal = round(bucketSubtotal + bucketDelivery + bucketPlatform);
+
+            splitItemsSubtotal += bucketSubtotal;
+            splitDeliveryFees += bucketDelivery;
+            splitPlatformFees += bucketPlatform;
+
+            splitBuckets.add(new SplitStoreBucketDto(
+                    bucketStore,
+                    bucketItems.size(),
+                    round(bucketSubtotal),
+                    bucketDelivery,
+                    bucketPlatform,
+                    bucketTotal,
+                    bucketItems
+            ));
+        }
+
+        double splitGrandTotal = round(splitItemsSubtotal + splitDeliveryFees + splitPlatformFees);
+        SplitBasketDto splitStrategy = new SplitBasketDto(
+                splitBuckets.size(),
+                totalProducts,
+                round(splitItemsSubtotal),
+                round(splitDeliveryFees),
+                round(splitPlatformFees),
+                splitGrandTotal,
+                splitBuckets
+        );
+
+        String recommendedStrategy;
+        String recommendationTitle;
+        String recommendationReason;
+        double netSavings;
+
+        if (bestSingleStore != null && bestSingleStore.getIsCompleteCoverage()) {
+            if (splitGrandTotal < bestSingleStore.getTotalCost() - 1.0) {
+                recommendedStrategy = "SPLIT_ORDER";
+                netSavings = round(bestSingleStore.getTotalCost() - splitGrandTotal);
+                recommendationTitle = "Split Order Wins! (Max Savings)";
+                recommendationReason = String.format(
+                        "Splitting your %d items across %d stores saves you ₹%.0f net, even after accounting for ₹%.0f in delivery & platform fees.",
+                        totalProducts, splitStrategy.getTotalStores(), netSavings, splitDeliveryFees + splitPlatformFees);
+            } else {
+                recommendedStrategy = "WHOLE_CART";
+                netSavings = round(splitGrandTotal - bestSingleStore.getTotalCost());
+                recommendationTitle = "All-in-One Cart Wins!";
+                recommendationReason = String.format(
+                        "Buying all %d items on %s saves you ₹%.0f compared to splitting across stores because you avoid extra delivery and platform fees.",
+                        totalProducts, bestSingleStore.getStore(), netSavings);
+            }
+        } else {
+            recommendedStrategy = "SPLIT_ORDER";
+            netSavings = 0.0;
+            recommendationTitle = "Split Order Required";
+            recommendationReason = "No single platform currently has 100% of your items. Splitting across stores ensures complete cart fulfillment.";
+        }
+
+        return new BasketOptimizationResponse(
+                recommendedStrategy,
+                recommendationTitle,
+                recommendationReason,
+                netSavings,
+                bestSingleStore,
+                allSingleStores,
+                splitStrategy
+        );
+    }
+
+    private double round(double val) {
+        return Math.round(val * 100.0) / 100.0;
     }
 }
