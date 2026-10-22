@@ -7,6 +7,8 @@ public class ProductCompareResponse {
     private String productName;
     private String imageUrl;
     private List<PriceOptionDto> options;
+    private String pincode;
+    private String location;
 
     public ProductCompareResponse() {
     }
@@ -20,6 +22,14 @@ public class ProductCompareResponse {
         this.productName = productName;
         this.imageUrl = imageUrl;
         this.options = options;
+    }
+
+    public ProductCompareResponse(String productName, String imageUrl, List<PriceOptionDto> options, String pincode, String location) {
+        this.productName = productName;
+        this.imageUrl = imageUrl;
+        this.options = options;
+        this.pincode = pincode;
+        this.location = location;
     }
 
     public String getProductName() {
@@ -44,5 +54,21 @@ public class ProductCompareResponse {
 
     public void setOptions(List<PriceOptionDto> options) {
         this.options = options;
+    }
+
+    public String getPincode() {
+        return pincode;
+    }
+
+    public void setPincode(String pincode) {
+        this.pincode = pincode;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 }

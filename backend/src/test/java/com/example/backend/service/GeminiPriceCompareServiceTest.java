@@ -117,4 +117,34 @@ class GeminiPriceCompareServiceTest {
         assertEquals(1, res.getBestSingleStore().getItemsAvailable());
         assertEquals(2, res.getBestSingleStore().getTotalItems());
     }
+
+    @Test
+    @DisplayName("comparePrices: Queries pincode-specific cache and returns location in response")
+    void testComparePrices_WithPincodeAndLocation() {
+        String product = "Amul Milk";
+        String pincode = "560038";
+        String location = "Indiranagar, Bangalore";
+
+        com.example.backend.entity.PriceCache cachedEntity = new com.example.backend.entity.PriceCache(
+                product, "Zepto", 66.0, "Amul Taaza (1L)", "https://zepto.com", 4.8, true, true, "http://img.png", pincode, location
+        );
+
+        Mockito.when(priceCacheRepository.findByProductQueryIgnoreCaseAndPincodeIgnoreCaseAndFetchedAtAfter(
+                Mockito.eq(product), Mockito.eq(pincode), Mockito.any()
+        )).thenReturn(List.of(cachedEntity));
+
+        List<ProductCompareResponse> result = service.comparePrices(List.of(product), pincode, location);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(product, result.get(0).getProductName());
+        assertEquals(pincode, result.get(0).getPincode());
+        assertEquals(location, result.get(0).getLocation());
+        assertEquals(1, result.get(0).getOptions().size());
+        assertEquals("Zepto", result.get(0).getOptions().get(0).getSite());
+
+        Mockito.verify(priceCacheRepository).findByProductQueryIgnoreCaseAndPincodeIgnoreCaseAndFetchedAtAfter(
+                Mockito.eq(product), Mockito.eq(pincode), Mockito.any()
+        );
+    }
 }

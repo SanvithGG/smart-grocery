@@ -43,6 +43,10 @@ public class GeminiPriceCompareService {
     }
 
     public List<ProductCompareResponse> comparePrices(List<String> rawProducts) {
+        return comparePrices(rawProducts, null, null);
+    }
+
+    public List<ProductCompareResponse> comparePrices(List<String> rawProducts, String pincode, String location) {
         if (rawProducts == null || rawProducts.isEmpty()) {
             return List.of();
         }
@@ -54,23 +58,26 @@ public class GeminiPriceCompareService {
             String product = rawProduct.trim();
             if (product.isBlank()) continue;
 
-            List<PriceCache> cached = priceCacheRepository.findByProductQueryIgnoreCaseAndFetchedAtAfter(product, cutoff);
+            boolean hasPincode = (pincode != null && !pincode.isBlank());
+            List<PriceCache> cached = hasPincode
+                    ? priceCacheRepository.findByProductQueryIgnoreCaseAndPincodeIgnoreCaseAndFetchedAtAfter(product, pincode.trim(), cutoff)
+                    : priceCacheRepository.findByProductQueryIgnoreCaseAndFetchedAtAfter(product, cutoff);
             if (!cached.isEmpty()) {
-                responseList.add(mapCachedToResponse(product, cached));
+                responseList.add(mapCachedToResponse(product, cached, pincode, location));
                 continue;
             }
 
             // Fetch live pricing via Gemini Grounded Search
-            List<PriceOptionDto> options = fetchLivePricesFromGemini(product);
+            List<PriceOptionDto> options = fetchLivePricesFromGemini(product, pincode, location);
             if (options.isEmpty()) {
                 options = generateFallbackOffers(product);
             }
 
             String imageUrl = resolveProductImageUrl(product, options);
             markCheapest(options);
-            saveToCache(product, options, imageUrl);
+            saveToCache(product, options, imageUrl, pincode, location);
 
-            responseList.add(new ProductCompareResponse(product, imageUrl, options));
+            responseList.add(new ProductCompareResponse(product, imageUrl, options, pincode, location));
         }
 
         return responseList;
@@ -90,9 +97,13 @@ public class GeminiPriceCompareService {
         }
     }
 
-    private void saveToCache(String productQuery, List<PriceOptionDto> options, String defaultImageUrl) {
+    private void saveToCache(String productQuery, List<PriceOptionDto> options, String defaultImageUrl, String pincode, String location) {
         try {
-            priceCacheRepository.deleteByProductQueryIgnoreCase(productQuery);
+            if (pincode != null && !pincode.isBlank()) {
+                priceCacheRepository.deleteByProductQueryIgnoreCaseAndPincodeIgnoreCase(productQuery, pincode.trim());
+            } else {
+                priceCacheRepository.deleteByProductQueryIgnoreCase(productQuery);
+            }
             for (PriceOptionDto opt : options) {
                 String img = (opt.getImageUrl() != null && !opt.getImageUrl().isBlank()) ? opt.getImageUrl() : defaultImageUrl;
                 opt.setImageUrl(img);
@@ -105,7 +116,9 @@ public class GeminiPriceCompareService {
                         opt.getRating(),
                         opt.getInStock(),
                         opt.getIsCheapest(),
-                        img
+                        img,
+                        pincode != null ? pincode.trim() : null,
+                        location != null ? location.trim() : null
                 );
                 priceCacheRepository.save(entity);
             }
@@ -113,7 +126,7 @@ public class GeminiPriceCompareService {
         }
     }
 
-    private ProductCompareResponse mapCachedToResponse(String product, List<PriceCache> cached) {
+    private ProductCompareResponse mapCachedToResponse(String product, List<PriceCache> cached, String pincode, String location) {
         String mainImage = cached.stream()
                 .map(c -> c.getImageUrl())
                 .filter(url -> url != null && !url.isBlank())
@@ -132,10 +145,12 @@ public class GeminiPriceCompareService {
         )).collect(Collectors.toList());
 
         markCheapest(dtos);
-        return new ProductCompareResponse(product, mainImage, dtos);
+        String resolvedPincode = (pincode != null && !pincode.isBlank()) ? pincode : (cached.isEmpty() ? null : cached.get(0).getPincode());
+        String resolvedLocation = (location != null && !location.isBlank()) ? location : (cached.isEmpty() ? null : cached.get(0).getLocation());
+        return new ProductCompareResponse(product, mainImage, dtos, resolvedPincode, resolvedLocation);
     }
 
-    private List<PriceOptionDto> fetchLivePricesFromGemini(String product) {
+    private List<PriceOptionDto> fetchLivePricesFromGemini(String product, String pincode, String location) {
         if (apiKey == null || apiKey.isBlank()) {
             return generateFallbackOffers(product);
         }

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import {
+  MapPin,
   Sparkles,
   PackageCheck,
   Split,
@@ -51,6 +52,7 @@ const resolveDirectStoreSearchUrl = (site, query) => {
 export default function SmartBasketOptimizer({
   products = [],
   selectedOffers = {},
+  locationContext = null,
   onApplyStrategy,
   onBatchAddToQueue
 }) {
@@ -257,9 +259,17 @@ export default function SmartBasketOptimizer({
       <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 text-white p-6 md:p-8">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold tracking-wide uppercase">
-              <Sparkles size={13} className="text-emerald-400 animate-pulse" />
-              Smart Basket Optimizer
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-bold tracking-wide uppercase">
+                <Sparkles size={13} className="text-emerald-400 animate-pulse" />
+                Smart Basket Optimizer
+              </div>
+              {locationContext?.label && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-sky-500/20 border border-sky-400/30 text-sky-300 text-xs font-semibold">
+                  <MapPin size={11} className="text-emerald-400" />
+                  {locationContext.label}
+                </span>
+              )}
             </div>
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
               {recommendationTitle}

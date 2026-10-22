@@ -5,7 +5,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "price_cache", indexes = {
-    @Index(name = "idx_product_query", columnList = "productQuery")
+    @Index(name = "idx_product_query", columnList = "productQuery"),
+    @Index(name = "idx_product_pincode", columnList = "productQuery,pincode")
 })
 public class PriceCache {
 
@@ -15,6 +16,12 @@ public class PriceCache {
 
     @Column(nullable = false)
     private String productQuery;
+
+    @Column(length = 20)
+    private String pincode;
+
+    @Column(length = 100)
+    private String location;
 
     @Column(nullable = false)
     private String site;
@@ -53,6 +60,21 @@ public class PriceCache {
         this.fetchedAt = LocalDateTime.now();
     }
 
+    public PriceCache(String productQuery, String site, double price, String productTitle, String productUrl, Double rating, Boolean inStock, Boolean isCheapest, String imageUrl, String pincode, String location) {
+        this.productQuery = productQuery;
+        this.site = site;
+        this.price = price;
+        this.productTitle = productTitle;
+        this.productUrl = productUrl;
+        this.rating = rating;
+        this.inStock = inStock;
+        this.isCheapest = isCheapest;
+        this.imageUrl = imageUrl;
+        this.pincode = pincode;
+        this.location = location;
+        this.fetchedAt = LocalDateTime.now();
+    }
+
     public Long getId() {
         return id;
     }
@@ -63,6 +85,22 @@ public class PriceCache {
 
     public void setProductQuery(String productQuery) {
         this.productQuery = productQuery;
+    }
+
+    public String getPincode() {
+        return pincode;
+    }
+
+    public void setPincode(String pincode) {
+        this.pincode = pincode;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 
     public String getSite() {

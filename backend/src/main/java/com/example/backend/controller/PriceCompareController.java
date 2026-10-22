@@ -59,7 +59,7 @@ public class PriceCompareController {
             }
         }
 
-        return priceCompareService.comparePrices(productList);
+        return priceCompareService.comparePrices(productList, request.getPincode(), request.getLocation());
     }
 
     @GetMapping("/analytics")

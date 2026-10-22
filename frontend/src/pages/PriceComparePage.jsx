@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Loader2, Sparkles, ShoppingBag, ExternalLink, Check, TrendingDown, Star, Store, ArrowRight } from 'lucide-react'
+import { Search, Loader2, Sparkles, ShoppingBag, ExternalLink, Check, TrendingDown, Star, Store, ArrowRight, MapPin, ChevronDown } from 'lucide-react'
 import { searchPriceCompare, getPriceAnalytics, createGrocery } from '../services/groceryService'
 import { getApiErrorMessage } from '../api/client'
 import Button from '../components/ui/Button'
@@ -8,6 +8,7 @@ import { useToast } from '../components/ui/toast'
 import { getSession } from '../utils/session'
 import StoreLogoBadge from '../components/ui/StoreLogoBadge'
 import SmartBasketOptimizer from '../components/SmartBasketOptimizer'
+import LocationSelectorModal from '../components/LocationSelectorModal'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const resolveDirectStoreProductUrl = (site, productTitle, rawUrl) => {
@@ -50,6 +51,20 @@ export default function PriceComparePage() {
   // Selected store option per product index: { [productIndex]: optionObject }
   const [selectedOffers, setSelectedOffers] = useState({})
   const [addingToQueue, setAddingToQueue] = useState(false)
+  const [locationContext, setLocationContext] = useState(() => {
+    try {
+      const saved = localStorage.getItem('smart_grocery_location')
+      if (saved) return JSON.parse(saved)
+    } catch {
+      // fallback
+    }
+    return {
+      pincode: '560038',
+      city: 'Indiranagar, Bangalore',
+      label: 'Indiranagar, Bangalore (560038)'
+    }
+  })
+  const [showLocationModal, setShowLocationModal] = useState(false)
 
   useEffect(() => {
     const initialText = location.state?.queryText
@@ -83,7 +98,12 @@ export default function PriceComparePage() {
   const executeSearch = async (payload) => {
     setLoading(true)
     try {
-      const rawData = await searchPriceCompare(payload)
+      const searchPayload = {
+        pincode: locationContext.pincode,
+        location: locationContext.city,
+        ...payload
+      }
+      const rawData = await searchPriceCompare(searchPayload)
       const data = Array.isArray(rawData) ? rawData : (rawData ? [rawData] : [])
       setResults(data)
       
@@ -122,6 +142,23 @@ export default function PriceComparePage() {
   const handleApplyStrategy = (type, selectionMap) => {
     setSelectedOffers(selectionMap)
     toast.success(type === 'WHOLE_CART' ? 'Applied All-in-One Cart strategy!' : 'Applied Maximum Savings Split strategy!')
+  }
+
+  const handleSelectLocation = (newLoc) => {
+    setLocationContext(newLoc)
+    try {
+      localStorage.setItem('smart_grocery_location', JSON.stringify(newLoc))
+    } catch {
+      // ignore
+    }
+    toast.success(`Delivery location updated to ${newLoc.label}`)
+    if (inputQuery.trim()) {
+      executeSearch({
+        text: inputQuery,
+        pincode: newLoc.pincode,
+        location: newLoc.city
+      })
+    }
   }
 
   const handleAddToBuyQueue = async () => {
@@ -184,6 +221,23 @@ export default function PriceComparePage() {
             Instant real-time price comparison across Blinkit, Swiggy Instamart, Zepto, Amazon India, Flipkart & BigBasket. Pick the best deals and send them straight to your Buy Queue.
           </p>
 
+          {/* Delivery Location Selector */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setShowLocationModal(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition cursor-pointer backdrop-blur-md shadow-xs"
+              title="Click to change delivery pincode or city"
+            >
+              <MapPin size={13} className="text-emerald-400" />
+              <span>Delivering to: <strong className="text-sky-300">{locationContext.label}</strong></span>
+              <ChevronDown size={12} className="text-slate-300" />
+            </button>
+            <span className="text-[11px] text-slate-300 hidden sm:inline">
+              Prices & dark-store inventory aligned with this PIN
+            </span>
+          </div>
+
           {/* Search Form */}
           <form onSubmit={handleManualSearch} className="pt-2 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -212,6 +266,7 @@ export default function PriceComparePage() {
         <SmartBasketOptimizer
           products={results}
           selectedOffers={selectedOffers}
+          locationContext={locationContext}
           onApplyStrategy={handleApplyStrategy}
           onBatchAddToQueue={handleAddToBuyQueue}
         />
@@ -227,11 +282,16 @@ export default function PriceComparePage() {
               <Store className="w-5 h-5 text-sky-600" />
               Store Price Comparisons
             </h2>
-            {results.length > 0 && (
-              <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
-                {results.length} Products Compared
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <MapPin size={11} className="text-emerald-600" /> {locationContext.city} ({locationContext.pincode})
               </span>
-            )}
+              {results.length > 0 && (
+                <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                  {results.length} Products
+                </span>
+              )}
+            </div>
           </div>
 
           {loading ? (
@@ -434,6 +494,14 @@ export default function PriceComparePage() {
         </div>
 
       </div>
+
+      {/* Location Selector Modal */}
+      <LocationSelectorModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        currentLocation={locationContext}
+        onSelectLocation={handleSelectLocation}
+      />
     </div>
   )
 }
