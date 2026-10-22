@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Loader2, Sparkles, ShoppingBag, ExternalLink, Check, TrendingDown, Star, Store, ArrowRight, MapPin, ChevronDown } from 'lucide-react'
+import { Search, Loader2, Sparkles, ShoppingBag, ExternalLink, Check, TrendingDown, Star, Store, ArrowRight, MapPin, ChevronDown, Smartphone } from 'lucide-react'
 import { searchPriceCompare, getPriceAnalytics, createGrocery } from '../services/groceryService'
 import { getApiErrorMessage } from '../api/client'
 import Button from '../components/ui/Button'
@@ -9,22 +9,10 @@ import { getSession } from '../utils/session'
 import StoreLogoBadge from '../components/ui/StoreLogoBadge'
 import SmartBasketOptimizer from '../components/SmartBasketOptimizer'
 import LocationSelectorModal from '../components/LocationSelectorModal'
+import { resolveStoreTargetUrl, isMobileDevice } from '../utils/deepLink'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
-const resolveDirectStoreProductUrl = (site, productTitle, rawUrl) => {
-  if (rawUrl && rawUrl.startsWith('http') && rawUrl.length > 25 && !rawUrl.endsWith('.com') && !rawUrl.endsWith('.in') && !rawUrl.endsWith('.com/')) {
-    return rawUrl
-  }
-  const query = encodeURIComponent(productTitle || '')
-  const s = (site || '').toLowerCase()
-  if (s.includes('blinkit')) return `https://blinkit.com/s/?q=${query}`
-  if (s.includes('instamart') || s.includes('swiggy')) return `https://www.swiggy.com/instamart/search?query=${query}`
-  if (s.includes('zepto')) return `https://www.zepto.com/search?query=${query}`
-  if (s.includes('amazon')) return `https://www.amazon.in/s?k=${query}`
-  if (s.includes('flipkart')) return `https://www.flipkart.com/search?q=${query}`
-  if (s.includes('bigbasket')) return `https://www.bigbasket.com/ps/?q=${query}`
-  return rawUrl || `https://www.google.com/search?q=${query}`
-}
+// uses resolveStoreTargetUrl from ../utils/deepLink
 
 export default function PriceComparePage() {
   const location = useLocation()
@@ -400,14 +388,18 @@ export default function PriceComparePage() {
 
                               <div className="flex items-center gap-2">
                                 <a
-                                  href={resolveDirectStoreProductUrl(option.site, option.productTitle || product.productName, option.productUrl)}
-                                  target="_blank"
+                                  href={resolveStoreTargetUrl(option.site, option.productTitle || product.productName, option.productUrl)}
+                                  target={isMobileDevice() ? '_self' : '_blank'}
                                   rel="noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                   className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition shadow-xs whitespace-nowrap"
-                                  title={`Open direct product page on ${option.site}`}
+                                  title={isMobileDevice() ? `Launch ${option.site} mobile app` : `Open direct product page on ${option.site}`}
                                 >
-                                  Open Page <ExternalLink size={11} />
+                                  {isMobileDevice() ? (
+                                    <>Open App <Smartphone size={11} /></>
+                                  ) : (
+                                    <>Open Page <ExternalLink size={11} /></>
+                                  )}
                                 </a>
 
                                 <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition ${

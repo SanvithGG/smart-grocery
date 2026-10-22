@@ -11,8 +11,10 @@ import {
   Store,
   Clock,
   Info,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Smartphone
 } from 'lucide-react'
+import { resolveStoreTargetUrl, isMobileDevice } from '../utils/deepLink'
 import StoreLogoBadge from './ui/StoreLogoBadge'
 
 // Canonical store delivery metadata
@@ -37,17 +39,7 @@ const getStoreInfo = (site) => {
   return { name: site, time: '⏱️ Fast Delivery', threshold: 199, standardFee: 25 }
 }
 
-const resolveDirectStoreSearchUrl = (site, query) => {
-  const q = encodeURIComponent(query || '')
-  const s = (site || '').toLowerCase()
-  if (s.includes('blinkit')) return `https://blinkit.com/s/?q=${q}`
-  if (s.includes('instamart') || s.includes('swiggy')) return `https://www.swiggy.com/instamart/search?query=${q}`
-  if (s.includes('zepto')) return `https://www.zepto.com/search?query=${q}`
-  if (s.includes('amazon')) return `https://www.amazon.in/s?k=${q}`
-  if (s.includes('flipkart')) return `https://www.flipkart.com/search?q=${q}`
-  if (s.includes('bigbasket')) return `https://www.bigbasket.com/ps/?q=${q}`
-  return `https://www.google.com/search?q=${q}`
-}
+// uses resolveStoreTargetUrl from ../utils/deepLink
 
 export default function SmartBasketOptimizer({
   products = [],
@@ -439,8 +431,8 @@ export default function SmartBasketOptimizer({
                       <PackageCheck size={14} /> Apply Whole Cart ({bestSingleStore.store})
                     </button>
                     <a
-                      href={resolveDirectStoreSearchUrl(bestSingleStore.store, products.map(p => p.productName).join(' '))}
-                      target="_blank"
+                      href={resolveStoreTargetUrl(bestSingleStore.store, products.map(p => p.productName).join(' '))}
+                      target={isMobileDevice() ? "_self" : "_blank"}
                       rel="noreferrer"
                       className="p-2.5 border border-slate-300 hover:bg-slate-100 rounded-xl text-slate-700 transition"
                       title={`Open ${bestSingleStore.store} Website`}
@@ -604,8 +596,8 @@ export default function SmartBasketOptimizer({
                       Select {st.store}
                     </button>
                     <a
-                      href={resolveDirectStoreSearchUrl(st.store, products.map(p => p.productName).join(' '))}
-                      target="_blank"
+                      href={resolveStoreTargetUrl(st.store, products.map(p => p.productName).join(' '))}
+                      target={isMobileDevice() ? "_self" : "_blank"}
                       rel="noreferrer"
                       className="p-2 border border-slate-300 hover:bg-slate-100 rounded-xl text-slate-700 transition"
                       title={`Open ${st.store}`}
@@ -662,8 +654,8 @@ export default function SmartBasketOptimizer({
                   <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
                     <span>Delivery: {bucket.deliveryFee === 0 ? <strong className="text-emerald-600">FREE</strong> : `₹${bucket.deliveryFee}`}</span>
                     <a
-                      href={resolveDirectStoreSearchUrl(bucket.store, bucket.items.map(i => i.originalProductName || i.productTitle).join(' '))}
-                      target="_blank"
+                      href={resolveStoreTargetUrl(bucket.store, bucket.items.map(i => i.originalProductName || i.productTitle).join(' '))}
+                      target={isMobileDevice() ? "_self" : "_blank"}
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-slate-900 hover:text-sky-600 font-bold transition"
                     >
@@ -751,8 +743,8 @@ export default function SmartBasketOptimizer({
                         Select Store
                       </button>
                       <a
-                        href={resolveDirectStoreSearchUrl(st.store, products.map(p => p.productName).join(' '))}
-                        target="_blank"
+                        href={resolveStoreTargetUrl(st.store, products.map(p => p.productName).join(' '))}
+                        target={isMobileDevice() ? "_self" : "_blank"}
                         rel="noreferrer"
                         className="inline-block p-1.5 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 align-middle"
                         title={`Open ${st.store}`}
